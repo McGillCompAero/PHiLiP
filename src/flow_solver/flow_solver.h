@@ -120,6 +120,18 @@ public:
     std::shared_ptr<ProperOrthogonalDecomposition::OnlinePOD<dim>> time_pod;
 
 private:
+    /// Runs the steady-state branch of the solver.
+    int run_steady() const;
+
+    /// Runs the unsteady branch of the solver.
+    int run_unsteady() const;
+
+    /// Prints a formatted section header to improve solver logging.
+    void print_task_header(const std::string &task_name) const;
+
+    /// Prints a formatted status message for a subtask.
+    void print_subtask(const std::string &message) const;
+
     /** Returns the column names of a dealii::TableHandler object
      *  given the first line of the file */
     std::vector<std::string> get_data_table_column_names(const std::string string_input) const;
