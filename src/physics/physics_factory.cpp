@@ -121,6 +121,10 @@ PhysicsFactory<dim,nstate,real>
                 manufactured_solution_function);
     } else if (pde_type == PDE_enum::navier_stokes) {
         if constexpr (nstate==dim+2) {
+            if (parameters_input->navier_stokes_param.reynolds_number_inf == 0) {
+                std::cout<<"Error! No Reynold's number was set."<<std::endl;
+                std::abort();
+            }
             return std::make_shared < NavierStokes<dim,nstate,real> > (
                 parameters_input,
                 parameters_input->euler_param.ref_length,
@@ -137,6 +141,8 @@ PhysicsFactory<dim,nstate,real>
                 parameters_input->navier_stokes_param.thermal_boundary_condition_type,
                 manufactured_solution_function,
                 parameters_input->two_point_num_flux_type);
+
+            
         }
     } else if (pde_type == PDE_enum::physics_model) {
         if constexpr (nstate>=dim+2) {
@@ -149,6 +155,8 @@ PhysicsFactory<dim,nstate,real>
         (void) diffusion_tensor;
         (void) advection_vector;
         (void) diffusion_coefficient;
+
+       
     }
     std::cout << "Can't create PhysicsBase, invalid PDE type: " << pde_type << std::endl;
     assert(0==1 && "Can't create PhysicsBase, invalid PDE type");

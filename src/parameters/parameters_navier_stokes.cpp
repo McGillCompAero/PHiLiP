@@ -11,8 +11,8 @@ void NavierStokesParam::declare_parameters (dealii::ParameterHandler &prm)
                           dealii::Patterns::Double(1e-15, dealii::Patterns::Double::max_double_value),
                           "Prandlt number. Default value is 0.72. "
                           "NOTE: Must be consitent with temperature_inf.");
-        prm.declare_entry("reynolds_number_inf", "10000000.0",
-                          dealii::Patterns::Double(1e-15, dealii::Patterns::Double::max_double_value),
+        prm.declare_entry("reynolds_number_inf", "0", //gillian changed to 0 to address issue
+                          dealii::Patterns::Double(0, dealii::Patterns::Double::max_double_value),
                           "Farfield Reynolds number");
         prm.declare_entry("temperature_inf", "273.15",
                           dealii::Patterns::Double(1e-15, dealii::Patterns::Double::max_double_value),
