@@ -60,18 +60,18 @@ public:
 
 
 /// Selects which flow case to simulate.
-template <int dim, int nstate>
+template <int dim, int nspecies, int nstate>
 class FlowSolver : public FlowSolverBase
 {
 public:
     /// Constructor.
     FlowSolver(
         const Parameters::AllParameters *const parameters_input, 
-        std::shared_ptr<FlowSolverCaseBase<dim, nstate>> flow_solver_case_input,
+        std::shared_ptr<FlowSolverCaseBase<dim, nspecies, nstate>> flow_solver_case_input,
         const dealii::ParameterHandler &parameter_handler_input);
     
     /// Pointer to Flow Solver Case
-    std::shared_ptr<FlowSolverCaseBase<dim, nstate>> flow_solver_case;
+    std::shared_ptr<FlowSolverCaseBase<dim, nspecies, nstate>> flow_solver_case;
 
     /// Parameter handler for storing the .prm file being ran
     const dealii::ParameterHandler &parameter_handler;
@@ -108,15 +108,16 @@ protected:
     const bool do_output_solution_at_fixed_times; ///< Flag for outputting solution at fixed times
     const unsigned int number_of_fixed_times_to_output_solution; ///< Number of fixed times to output the solution
     const bool output_solution_at_exact_fixed_times;///< Flag for outputting the solution at exact fixed times by decreasing the time step on the fly
-    
+    const bool do_compute_unsteady_data_and_write_to_table;///< Flag for computing unsteady data and writting to table
+
 public:
     /// Pointer to dg so it can be accessed externally.
-    std::shared_ptr<DGBase<dim, double>> dg;
+    std::shared_ptr<DGBase<dim, nspecies, double>> dg;
 
     /// Pointer to ode solver so it can be accessed externally.
-    std::shared_ptr<ODE::ODESolverBase<dim, double>> ode_solver;
+    std::shared_ptr<ODE::ODESolverBase<dim, nspecies, double>> ode_solver;
 
-    std::shared_ptr<ProperOrthogonalDecomposition::OnlinePOD<dim>> time_pod;
+    std::shared_ptr<ProperOrthogonalDecomposition::OnlinePOD<dim,nspecies>> time_pod;
 
 private:
     /** Returns the column names of a dealii::TableHandler object

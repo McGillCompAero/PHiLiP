@@ -26,8 +26,8 @@ namespace Physics {
  *      = s(\mathbf{x})
  *  \f]
  */
-template <int dim, int nstate, typename real>
-class Burgers : public PhysicsBase <dim, nstate, real>
+template <int dim, int nspecies, int nstate, typename real>
+class Burgers : public PhysicsBase <dim, nspecies, nstate, real>
 {
 protected:
     // For overloading the virtual functions defined in PhysicsBase
@@ -37,8 +37,9 @@ protected:
      *  Solution: In order to make the hidden function visible in derived class, 
      *  we need to add the following:
     */
-    using PhysicsBase<dim,nstate,real>::dissipative_flux;
-    using PhysicsBase<dim,nstate,real>::source_term;
+    using PhysicsBase<dim,nspecies,nstate,real>::dissipative_flux;
+    using PhysicsBase<dim,nspecies,nstate,real>::source_term;
+    using PhysicsBase<dim,nspecies,nstate,real>::boundary_face_values;
 protected:
     /// Diffusion scaling coefficient in front of the diffusion tensor.
     double diffusion_scaling_coeff;
@@ -58,7 +59,7 @@ public:
         const bool                                                convection = true, 
         const bool                                                diffusion = true,
         const dealii::Tensor<2,3,double>                          input_diffusion_tensor = Parameters::ManufacturedSolutionParam::get_default_diffusion_tensor(),
-        std::shared_ptr< ManufacturedSolutionFunction<dim,real> > manufactured_solution_function = nullptr,
+        std::shared_ptr< ManufacturedSolutionFunction<dim,nspecies,real> > manufactured_solution_function = nullptr,
         const Parameters::AllParameters::TestType                 parameters_test = Parameters::AllParameters::TestType::run_control,
         const bool                                                has_nonzero_physical_source = false);
 
@@ -69,6 +70,24 @@ public:
     std::array<dealii::Tensor<1,dim,real>,nstate> convective_numerical_split_flux (
                 const std::array<real,nstate> &conservative_soln1,
                 const std::array<real,nstate> &conservative_soln2) const override;
+
+    /// Convert conservative variables to primitive variables
+    std::array<real,nstate> convert_conservative_to_primitive ( const std::array<real,nstate> &conservative_soln ) const;
+
+    /// Convert primitive solution to conservative solution
+    std::array<real,nstate> convert_primitive_to_conservative ( const std::array<real,nstate> &primitive_soln ) const;
+
+    /** Obtain gradient of primitive variables from gradient of conservative variables */
+    std::array<dealii::Tensor<1,dim,real>,nstate> 
+    convert_conservative_gradient_to_primitive_gradient (
+        const std::array<real,nstate> &conservative_soln,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &conservative_soln_gradient) const;
+
+    /** Obtain gradient of conservative variables from gradient of primitive variables */
+    std::array<dealii::Tensor<1,dim,real>,nstate> 
+    convert_primitive_gradient_to_conservative_gradient (
+        const std::array<real,nstate> &primitive_soln,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &primitive_soln_gradient) const;
 
     /// Computes the entropy variables.
     std::array<real,nstate> compute_entropy_variables (

@@ -2,6 +2,9 @@
 #define __PHILIP_LIFT_DRAG_H__
 
 #include "functional.h"
+#include "parameters/all_parameters.h"
+#include "physics/physics_factory.h"
+#include "physics/navier_stokes.h"
 
 namespace PHiLiP {
 
@@ -9,11 +12,11 @@ namespace PHiLiP {
  *  Simply zero out the default volume contribution.
  */
 #if PHILIP_DIM==1
-template <int dim, int nstate, typename real, typename MeshType = dealii::Triangulation<dim>>
+template <int dim, int nspecies, int nstate, typename real, typename MeshType = dealii::Triangulation<dim>>
 #else
-template <int dim, int nstate, typename real, typename MeshType = dealii::parallel::distributed::Triangulation<dim>>
+template <int dim, int nspecies, int nstate, typename real, typename MeshType = dealii::parallel::distributed::Triangulation<dim>>
 #endif
-class LiftDragFunctional : public Functional<dim, nstate, real, MeshType>
+class LiftDragFunctional : public Functional<dim, nspecies, nstate, real, MeshType>
 {
 public:
     /// @brief Switch between lift and drag functional types.
@@ -27,13 +30,13 @@ private:
      *  us, but is a typical bug that other people have. This 'using' imports the base class function
      *  to our derived class even though we don't need it.
      */
-    using Functional<dim,nstate,real,MeshType>::evaluate_volume_integrand;
+    using Functional<dim,nspecies,nstate,real,MeshType>::evaluate_volume_integrand;
 
     /// @brief Switches between lift and drag.
     const Functional_types functional_type;
 
     /// @brief Casts DG's physics into an Euler physics reference.
-    const Physics::Euler<dim,dim+2,FadFadType> &euler_fad_fad;
+    const Physics::Euler<dim,nspecies,dim+2,FadFadType> &euler_fad_fad;
     /// @brief Angle of attack retrieved from euler_fad_fad.
     const double angle_of_attack;
     /// @brief Rotation matrix based on angle of attack.
@@ -60,6 +63,8 @@ private:
      */
     const double force_dimensionalization_factor;
 
+    const Parameters::AllParameters *const all_parameters; ///< Pointer to all parameters
+
     /// Compute force dimensionalization factor.
     double initialize_force_dimensionalization_factor();
 
@@ -79,7 +84,7 @@ private:
 public:
     /// Constructor
     LiftDragFunctional(
-        std::shared_ptr<DGBase<dim,real,MeshType>> dg_input,
+        std::shared_ptr<DGBase<dim,nspecies,real,MeshType>> dg_input,
         const Functional_types functional_type);
     /// Destructor
 
@@ -90,25 +95,41 @@ public:
     /** Used only in the computation of evaluate_function(). If not overriden returns 0. */
     template<typename real2>
     real2 evaluate_boundary_integrand(
-        const PHiLiP::Physics::PhysicsBase<dim,nstate,real2> &physics,
+        const PHiLiP::Physics::PhysicsBase<dim,nspecies,nstate,real2> &/*physics*/,
         const unsigned int boundary_id,
         const dealii::Point<dim,real2> &/*phys_coord*/,
         const dealii::Tensor<1,dim,real2> &normal,
         const std::array<real2,nstate> &soln_at_q,
-        const std::array<dealii::Tensor<1,dim,real2>,nstate> &/*soln_grad_at_q*/) const
+        const std::array<dealii::Tensor<1,dim,real2>,nstate> &soln_grad_at_q) const
     {
-        if (boundary_id == 1001) {
+        if (boundary_id == 1001 || boundary_id == 1006) {
             assert(soln_at_q.size() == dim+2);
-            const Physics::Euler<dim,dim+2,real2> &euler = dynamic_cast< const Physics::Euler<dim,dim+2,real2> &> (physics);
 
-            real2 pressure = euler.compute_pressure (soln_at_q);
+            /// Pointer to Navier-Stokes physics object
+            using PDE_enum = Parameters::AllParameters::PartialDifferentialEquation;
+            std::shared_ptr< Physics::NavierStokes<dim,nspecies,dim+2,real2> > navier_stokes_physics = std::dynamic_pointer_cast<Physics::NavierStokes<dim,nspecies,dim+2,real2>> (Physics::PhysicsFactory<dim,nspecies,dim+2,real2>::create_Physics(this->all_parameters, PDE_enum::navier_stokes, nullptr));
 
-            //std::cout << " force_dimensionalization_factor: " << force_dimensionalization_factor
-            //          << " pressure: " << pressure
-            //          << " normal*force_vector: " << normal*force_vector
-            //          << std::endl;
+            // Compute pressure (same as Euler physics)
+            const real2 pressure = navier_stokes_physics->compute_pressure (soln_at_q);
+			
+            // Initialize
+			dealii::Tensor<1,dim,real2> viscous_tensor_times_normal;
+			for(int i=0; i<dim; i++){
+				viscous_tensor_times_normal[i] = 0;
+			}
+            // add viscous stress tensor contribution if viscous (i.e. not Euler)
+            if(this->all_parameters->pde_type != PDE_enum::euler) {
+                // Compute viscous stress tensor
+                const dealii::Tensor<2,dim,real2> viscous_stress_tensor = navier_stokes_physics->compute_viscous_stress_tensor_from_conservative_templated(soln_at_q, soln_grad_at_q);
+                // std::cout<<"Norm of viscous stress tensor = "<<  viscous_stress_tensor[0][0]<<std::endl;
+                for (int i=0;i<dim;i++){
+                    for (int j=0;j<dim;j++){
+                        viscous_tensor_times_normal[i]+= viscous_stress_tensor[i][j]*normal[j];
+                    }
+                }
+            }
 
-            return force_dimensionalization_factor * pressure * (normal * force_vector);
+            return force_dimensionalization_factor * (pressure * (normal * force_vector) -  viscous_tensor_times_normal*force_vector);
         } 
         return (real2) 0.0;
     }
@@ -116,7 +137,7 @@ public:
     /// Virtual function for computation of cell boundary functional term
     /** Used only in the computation of evaluate_function(). If not overriden returns 0. */
     virtual real evaluate_boundary_integrand(
-        const PHiLiP::Physics::PhysicsBase<dim,nstate,real> &physics,
+        const PHiLiP::Physics::PhysicsBase<dim,nspecies,nstate,real> &physics,
         const unsigned int boundary_id,
         const dealii::Point<dim,real> &phys_coord,
         const dealii::Tensor<1,dim,real> &normal,
@@ -135,7 +156,7 @@ public:
     /// Virtual function for Sacado computation of cell boundary functional term and derivatives
     /** Used only in the computation of evaluate_dIdw(). If not overriden returns 0. */
     virtual FadFadType evaluate_boundary_integrand(
-        const PHiLiP::Physics::PhysicsBase<dim,nstate,FadFadType> &physics,
+        const PHiLiP::Physics::PhysicsBase<dim,nspecies,nstate,FadFadType> &physics,
         const unsigned int boundary_id,
         const dealii::Point<dim,FadFadType> &phys_coord,
         const dealii::Tensor<1,dim,FadFadType> &normal,
@@ -154,7 +175,7 @@ public:
     /// Virtual function for computation of cell volume functional term
     /** Used only in the computation of evaluate_function(). If not overriden returns 0. */
     virtual real evaluate_volume_integrand(
-        const PHiLiP::Physics::PhysicsBase<dim,nstate,real> &/*physics*/,
+        const PHiLiP::Physics::PhysicsBase<dim,nspecies,nstate,real> &/*physics*/,
         const dealii::Point<dim,real> &/*phys_coord*/,
         const std::array<real,nstate> &/*soln_at_q*/,
         const std::array<dealii::Tensor<1,dim,real>,nstate> &/*soln_grad_at_q*/) const
@@ -163,7 +184,7 @@ public:
     /// Virtual function for Sacado computation of cell volume functional term and derivatives
     /** Used only in the computation of evaluate_dIdw(). If not overriden returns 0. */
     virtual FadFadType evaluate_volume_integrand(
-        const PHiLiP::Physics::PhysicsBase<dim,nstate,FadFadType> &/*physics*/,
+        const PHiLiP::Physics::PhysicsBase<dim,nspecies,nstate,FadFadType> &/*physics*/,
         const dealii::Point<dim,FadFadType> &/*phys_coord*/, const std::array<FadFadType,nstate> &/*soln_at_q*/,
         const std::array<dealii::Tensor<1,dim,FadFadType>,nstate> &/*soln_grad_at_q*/) const
     { return (FadFadType) 0.0; }
@@ -171,13 +192,13 @@ public:
 
 };
 
-// template <int dim, int nstate, typename real>
-// class TargetLiftDragFunctional : public LiftDragFunctional<dim,nstate,real>
+// template <int dim, int nspecies, int nstate, typename real>
+// class TargetLiftDragFunctional : public LiftDragFunctional<dim,nspecies,nstate,real>
 // {
 // private:
 //     /// Constructor
 //     TargetLiftDragFunctional(
-//         std::shared_ptr<DGBase<dim,real>> dg_input,
+//         std::shared_ptr<DGBase<dim,nspecies,real>> dg_input,
 //         const Functional_types functional_type
 //         const double target_value = -1e200
 //         : LiftDragFunctional(dg_input, functional_type)
@@ -190,15 +211,15 @@ public:
 //         const bool compute_dIdX,
 //         const bool compute_d2I)
 //     {
-//         real value = LiftDragFunctional<dim,nstate,real>::evaluate_functional(compute_dIdW, compute_dIdX, compute_d2I);
+//         real value = LiftDragFunctional<dim,nspecies,nstate,real>::evaluate_functional(compute_dIdW, compute_dIdX, compute_d2I);
 // 
 //         return value - target_value
 //     }
 // 
 // };
 // 
-// template <int dim, int nstate, typename real>
-// class QuadraticPenaltyTargetLiftDragFunctional : public TargetLiftDragFunctional<dim,nstate,real>
+// template <int dim, int nspecies, int nstate, typename real>
+// class QuadraticPenaltyTargetLiftDragFunctional : public TargetLiftDragFunctional<dim,nspecies,nstate,real>
 // {
 // public:
 // 
@@ -206,7 +227,7 @@ public:
 // 
 //     /// Constructor
 //     QuadraticPenaltyTargetLiftDragFunctional(
-//         std::shared_ptr<DGBase<dim,real>> dg_input,
+//         std::shared_ptr<DGBase<dim,nspecies,real>> dg_input,
 //         const Functional_types functional_type
 //         const double target_value = -1e200
 //         const double penalty = 0
@@ -220,7 +241,7 @@ public:
 //         const bool compute_dIdX,
 //         const bool compute_d2I)
 //     {
-//         real value = TargetLiftDragFunctional<dim,nstate,real>::evaluate_functional((compute_dIdW || compute_d2I), (compute_dIdX || compute_d2I), compute_d2I);
+//         real value = TargetLiftDragFunctional<dim,nspecies,nstate,real>::evaluate_functional((compute_dIdW || compute_d2I), (compute_dIdX || compute_d2I), compute_d2I);
 // 
 //         if (compute_dIdW) {
 //             const real scaling = 2.0*value;

@@ -244,6 +244,7 @@ int main (int argc, char * argv[])
     using namespace PHiLiP;
     std::cout << std::setprecision(std::numeric_limits<long double>::digits10 + 1) << std::scientific;
     const int dim = PHILIP_DIM;
+    const int nspecies = 1;
     const int nstate = 1;
     dealii::ParameterHandler parameter_handler;
     PHiLiP::Parameters::AllParameters::declare_parameters (parameter_handler);
@@ -279,7 +280,7 @@ int main (int argc, char * argv[])
     for(unsigned int poly_degree = 2; poly_degree<5; poly_degree++){
         unsigned int grid_degree = poly_degree;
 
-        std::shared_ptr < PHiLiP::DGBase<dim, double> > dg = PHiLiP::DGFactory<dim,double>::create_discontinuous_galerkin(&all_parameters_new, poly_degree, poly_degree, grid_degree, grid);
+        std::shared_ptr < PHiLiP::DGBase<dim, nspecies, double> > dg = PHiLiP::DGFactory<dim,nspecies,double>::create_discontinuous_galerkin(&all_parameters_new, poly_degree, poly_degree, grid_degree, grid);
         dg->allocate_system ();
 
         dealii::QGaussLobatto<1> grid_quad(grid_degree +1);
@@ -288,7 +289,7 @@ int main (int argc, char * argv[])
         dealii::QGauss<1> flux_quad(poly_degree +1);
         dealii::QGauss<0> flux_quad_face(poly_degree +1);
 
-        PHiLiP::OPERATOR::mapping_shape_functions<dim,2*dim,real> mapping_basis(nstate,poly_degree,grid_degree);
+        PHiLiP::OPERATOR::mapping_shape_functions<dim,2*dim> mapping_basis(nstate,poly_degree,grid_degree);
         mapping_basis.build_1D_shape_functions_at_grid_nodes(fe_sys_grid, grid_quad);
         mapping_basis.build_1D_shape_functions_at_flux_nodes(fe_sys_grid, flux_quad, flux_quad_face);
 
@@ -329,7 +330,7 @@ int main (int argc, char * argv[])
 
             const dealii::FE_DGQArbitraryNodes<1> fe_poly(flux_quad);
             const dealii::FESystem<1,1> fe_sys_poly(fe_poly, nstate);
-            PHiLiP::OPERATOR::basis_functions_state<dim,nstate,2*dim,real> flux_basis_quad(poly_degree, 1);
+            PHiLiP::OPERATOR::basis_functions_state<dim,nstate,2*dim> flux_basis_quad(poly_degree, 1);
             flux_basis_quad.build_1D_gradient_state_operator(fe_sys_poly, flux_quad);
             flux_basis_quad.build_1D_volume_state_operator(fe_sys_poly, flux_quad);
             for(int idim=0; idim<dim; idim++){

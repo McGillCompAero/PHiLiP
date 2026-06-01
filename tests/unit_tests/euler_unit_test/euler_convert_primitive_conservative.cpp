@@ -12,6 +12,7 @@ int main (int argc, char * argv[])
 {
     MPI_Init(&argc, &argv);
     const int dim = PHILIP_DIM;
+    const int nspecies = 1;
     const int nstate = dim+2;
 
     //const double ref_length = 1.0, mach_inf=1.0, angle_of_attack = 0.0, side_slip_angle = 0.0, gamma_gas = 1.4;
@@ -21,7 +22,7 @@ int main (int argc, char * argv[])
     PHiLiP::Parameters::AllParameters::declare_parameters (parameter_handler); // default fills options
     PHiLiP::Parameters::AllParameters all_parameters;
     all_parameters.parse_parameters (parameter_handler);
-    PHiLiP::Physics::Euler<dim, nstate, double> euler_physics = PHiLiP::Physics::Euler<dim, nstate, double>(&all_parameters,a,c,a,b,b);
+    PHiLiP::Physics::Euler<dim, nspecies, nstate, double> euler_physics = PHiLiP::Physics::Euler<dim, nspecies, nstate, double>(&all_parameters,a,c,a,b,b);
 
     const double min = 0.0;
     const double max = 1.0;
@@ -45,7 +46,7 @@ int main (int argc, char * argv[])
             for (int s=0; s<nstate; s++) {
                 conservative_soln[s] = euler_physics.manufactured_solution_function->value(vertex, s);
             }
-            primitive_soln = euler_physics.convert_conservative_to_primitive(conservative_soln);
+            primitive_soln = euler_physics.convert_conservative_to_primitive_templated(conservative_soln);
             conservative_soln2 = euler_physics.convert_primitive_to_conservative(primitive_soln);
 
             // Flipping back and forth between conservative and primitive solution result

@@ -30,7 +30,7 @@ namespace Physics {
  *      = s(\mathbf{x})
  *  \f]
  */
-template <int dim, int nstate, typename real>
+template <int dim, int nspecies, int nstate, typename real>
 class PhysicsBase
 {
 public:
@@ -43,14 +43,14 @@ public:
         const bool                                                has_nonzero_diffusion_input,
         const bool                                                has_nonzero_physical_source_input,
         const dealii::Tensor<2,3,double>                          input_diffusion_tensor = Parameters::ManufacturedSolutionParam::get_default_diffusion_tensor(),
-        std::shared_ptr< ManufacturedSolutionFunction<dim,real> > manufactured_solution_function_input = nullptr);
+        std::shared_ptr< ManufacturedSolutionFunction<dim,nspecies,real> > manufactured_solution_function_input = nullptr);
 
     /// Constructor that will call default constructor.
     PhysicsBase(
         const Parameters::AllParameters *const                    parameters_input,
         const bool                                                has_nonzero_diffusion_input,
         const bool                                                has_nonzero_physical_source_input,
-        std::shared_ptr< ManufacturedSolutionFunction<dim,real> > manufactured_solution_function_input = nullptr);
+        std::shared_ptr< ManufacturedSolutionFunction<dim,nspecies,real> > manufactured_solution_function_input = nullptr);
 
     /// Virtual destructor required for abstract classes.
     virtual ~PhysicsBase() = default;
@@ -68,7 +68,28 @@ public:
     const NonPhysicalBehaviorEnum non_physical_behavior_type;    
 
     /// Manufactured solution function
-    std::shared_ptr< ManufacturedSolutionFunction<dim,real> > manufactured_solution_function;
+    std::shared_ptr< ManufacturedSolutionFunction<dim,nspecies,real> > manufactured_solution_function;
+
+    /// Convert conservative variables to primitive variables
+    virtual std::array<real,nstate> convert_conservative_to_primitive ( const std::array<real,nstate> &conservative_soln ) const = 0;
+
+    /// Convert primitive solution to conservative solution
+    virtual std::array<real,nstate> convert_primitive_to_conservative ( const std::array<real,nstate> &primitive_soln ) const = 0;
+
+    /// Compute pressure from conservative solution
+    virtual real compute_pressure ( const std::array<real,nstate> &conservative_soln ) const;
+
+    /** Obtain gradient of primitive variables from gradient of conservative variables */
+    virtual std::array<dealii::Tensor<1,dim,real>,nstate> 
+    convert_conservative_gradient_to_primitive_gradient (
+        const std::array<real,nstate> &conservative_soln,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &conservative_soln_gradient) const = 0;
+
+    /** Obtain gradient of conservative variables from gradient of primitive variables */
+    virtual std::array<dealii::Tensor<1,dim,real>,nstate> 
+    convert_primitive_gradient_to_conservative_gradient (
+        const std::array<real,nstate> &primitive_soln,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &primitive_soln_gradient) const = 0;
 
     /// Convective fluxes that will be differentiated once in space.
     virtual std::array<dealii::Tensor<1,dim,real>,nstate> convective_flux (
@@ -110,6 +131,25 @@ public:
     //     const std::array<real,nstate> &solution,
     //     const std::array<dealii::Tensor<1,dim,real>,nstate> &solution_grad) const = 0;
 
+    /// Dissipative fluxes dot normal vector
+    virtual std::array<real,nstate> dissipative_flux_dot_normal (
+        const std::array<real,nstate> &solution,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &solution_gradient,
+        const std::array<real,nstate> &filtered_solution,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &filtered_solution_gradient,
+        const bool on_boundary,
+        const dealii::types::global_dof_index cell_index,
+        const dealii::Tensor<1,dim,real> &normal,
+        const int boundary_type);
+
+    /// Dissipative fluxes that will be differentiated ONCE in space.
+    virtual std::array<dealii::Tensor<1,dim,real>,nstate> dissipative_flux (
+        const std::array<real,nstate> &solution,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &solution_gradient,
+        const std::array<real,nstate> &filtered_solution,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &filtered_solution_gradient,
+        const dealii::types::global_dof_index cell_index);
+
     /// Dissipative fluxes that will be differentiated ONCE in space.
     virtual std::array<dealii::Tensor<1,dim,real>,nstate> dissipative_flux (
         const std::array<real,nstate> &solution,
@@ -142,6 +182,30 @@ public:
         const real viscosity_coefficient,
         const dealii::Point<dim,real> &pos,
         const std::array<real,nstate> &solution) const;
+
+    /// Evaluates boundary values and gradients on the other side of the face for the convective flux
+    virtual void boundary_face_values (
+        const int /*boundary_type*/,
+        const dealii::Point<dim, real> &/*pos*/,
+        const dealii::Tensor<1,dim,real> &/*normal*/,
+        const std::array<real,nstate> &/*soln_int*/,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &/*soln_grad_int*/,
+        const std::array<real,nstate> &/*filtered_soln_int*/,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &/*filtered_soln_grad_int*/,
+        std::array<real,nstate> &/*soln_bc*/,
+        std::array<dealii::Tensor<1,dim,real>,nstate> &/*soln_grad_bc*/) const;
+
+    /// Evaluates boundary values and gradients on the other side of the face for the viscous flux
+    virtual void boundary_face_values_viscous_flux (
+        const int /*boundary_type*/,
+        const dealii::Point<dim, real> &/*pos*/,
+        const dealii::Tensor<1,dim,real> &/*normal*/,
+        const std::array<real,nstate> &/*soln_int*/,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &/*soln_grad_int*/,
+        const std::array<real,nstate> &/*filtered_soln_int*/,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &/*filtered_soln_grad_int*/,
+        std::array<real,nstate> &/*soln_bc*/,
+        std::array<dealii::Tensor<1,dim,real>,nstate> &/*soln_grad_bc*/) const;
 
     /// Evaluates boundary values and gradients on the other side of the face.
     virtual void boundary_face_values (

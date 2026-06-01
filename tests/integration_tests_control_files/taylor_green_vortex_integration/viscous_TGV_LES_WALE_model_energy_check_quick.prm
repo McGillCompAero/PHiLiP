@@ -12,8 +12,8 @@ set use_weak_form = true
 # set flux_nodes_type = GLL
 set non_physical_behavior = abort_run
 
-# Note: this was added to turn off check_same_coords() -- has no other function when dim!=1
-set use_periodic_bc = true
+set all_boundaries_are_periodic = true
+set check_same_coords_in_weak_dg = false
 
 # degree of freedom renumbering not necessary for explicit time advancement cases
 set do_renumber_dofs = false
@@ -44,8 +44,8 @@ subsection navier_stokes
 end
 
 subsection physics_model
+  set euler_turbulence = false
   subsection large_eddy_simulation
-    set euler_turbulence = false
     set SGS_model_type = wall_adaptive_local_eddy_viscosity
     set turbulent_prandtl_number = 0.6
     set smagorinsky_model_constant = 0.18
@@ -68,5 +68,6 @@ subsection flow_solver
   subsection taylor_green_vortex
     set expected_kinetic_energy_at_final_time = 1.2073496747088834e-01
     set expected_theoretical_dissipation_rate_at_final_time = 4.5423825108833685e-04
+    set check_nonphysical_flow_case_behavior = false
   end
 end

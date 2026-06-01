@@ -73,8 +73,8 @@ namespace Physics {
  *  Still need to provide functions to un-non-dimensionalize the variables.
  *  Like, given density_inf
  */
-template <int dim, int nstate, typename real>
-class MHD : public PhysicsBase <dim, nstate, real>
+template <int dim, int nspecies, int nstate, typename real>
+class MHD : public PhysicsBase <dim, nspecies, nstate, real>
 {
 protected:
     // For overloading the virtual functions defined in PhysicsBase
@@ -84,18 +84,19 @@ protected:
      *  Solution: In order to make the hidden function visible in derived class, 
      *  we need to add the following:
     */
-    using PhysicsBase<dim,nstate,real>::dissipative_flux;
-    using PhysicsBase<dim,nstate,real>::source_term;
+    using PhysicsBase<dim,nspecies,nstate,real>::dissipative_flux;
+    using PhysicsBase<dim,nspecies,nstate,real>::source_term;
+    using PhysicsBase<dim,nspecies,nstate,real>::boundary_face_values;
 public:
     /// Constructor
     MHD(
         const Parameters::AllParameters *const                    parameters_input,
         const double                                              gamma_gas, 
         const dealii::Tensor<2,3,double>                          input_diffusion_tensor = Parameters::ManufacturedSolutionParam::get_default_diffusion_tensor(),
-        std::shared_ptr< ManufacturedSolutionFunction<dim,real> > manufactured_solution_function = nullptr,
+        std::shared_ptr< ManufacturedSolutionFunction<dim,nspecies,real> > manufactured_solution_function = nullptr,
         const bool                                                has_nonzero_diffusion = false,
         const bool                                                has_nonzero_physical_source = false)
-    : PhysicsBase<dim,nstate,real>(parameters_input, has_nonzero_diffusion, has_nonzero_physical_source, input_diffusion_tensor, manufactured_solution_function)
+    : PhysicsBase<dim,nspecies,nstate,real>(parameters_input, has_nonzero_diffusion, has_nonzero_physical_source, input_diffusion_tensor, manufactured_solution_function)
     , gam(gamma_gas)
     , gamm1(gam-1.0)
     {
@@ -170,6 +171,18 @@ public:
     ///
     /// Opposite of convert_primitive_to_conservative
     std::array<real,nstate> convert_primitive_to_conservative ( const std::array<real,nstate> &primitive_soln ) const;
+
+    /** Obtain gradient of primitive variables from gradient of conservative variables */
+    std::array<dealii::Tensor<1,dim,real>,nstate> 
+    convert_conservative_gradient_to_primitive_gradient (
+        const std::array<real,nstate> &conservative_soln,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &conservative_soln_gradient) const;
+
+    /** Obtain gradient of conservative variables from gradient of primitive variables */
+    std::array<dealii::Tensor<1,dim,real>,nstate> 
+    convert_primitive_gradient_to_conservative_gradient (
+        const std::array<real,nstate> &primitive_soln,
+        const std::array<dealii::Tensor<1,dim,real>,nstate> &primitive_soln_gradient) const;
 
     /// Evaluate pressure from conservative variables
     real compute_pressure ( const std::array<real,nstate> &conservative_soln ) const;
