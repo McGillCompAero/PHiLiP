@@ -125,6 +125,10 @@ PhysicsFactory<dim,nspecies,nstate,real>
                     manufactured_solution_function);
         } else if (pde_type == PDE_enum::navier_stokes) {
             if constexpr (nstate==dim+2) {
+                if (parameters_input->navier_stokes_param.reynolds_number_inf == 0) {     // 0 is the default Reynold's number
+                     std::cout << "Error! No Reynold's number was input." << std::endl;
+                     std::abort()
+                }
                 return std::make_shared < NavierStokes<dim,nspecies,nstate,real> > (
                     parameters_input,
                     parameters_input->euler_param.ref_length,
