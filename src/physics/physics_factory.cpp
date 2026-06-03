@@ -129,7 +129,6 @@ PhysicsFactory<dim,nspecies,nstate,real>
                      std::abort();
                 }
             if constexpr (nstate==dim+2) {
-                
                 return std::make_shared < NavierStokes<dim,nspecies,nstate,real> > (
                     parameters_input,
                     parameters_input->euler_param.ref_length,
