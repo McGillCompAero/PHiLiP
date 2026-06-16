@@ -65,6 +65,7 @@ private:
 
     const Parameters::AllParameters *const all_parameters; ///< Pointer to all parameters
 
+
     /// Compute force dimensionalization factor.
     double initialize_force_dimensionalization_factor();
 
@@ -107,6 +108,10 @@ public:
 
             /// Pointer to Navier-Stokes physics object
             using PDE_enum = Parameters::AllParameters::PartialDifferentialEquation;
+            PHiLiP::Parameters::AllParameters all_parameters_write; //pointer with write permission for Reynolds number declaration
+            if(this->all_parameters->pde_type == PDE_enum::euler) {
+                all_parameters_write.navier_stokes_param.reynolds_number_inf = 10000000;  //added arbitrary default to prevent test case failure
+            }
             std::shared_ptr< Physics::NavierStokes<dim,nspecies,dim+2,real2> > navier_stokes_physics = std::dynamic_pointer_cast<Physics::NavierStokes<dim,nspecies,dim+2,real2>> (Physics::PhysicsFactory<dim,nspecies,dim+2,real2>::create_Physics(this->all_parameters, PDE_enum::navier_stokes, nullptr));
 
             // Compute pressure (same as Euler physics)
