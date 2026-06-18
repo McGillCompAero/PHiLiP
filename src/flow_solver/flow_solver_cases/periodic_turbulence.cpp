@@ -47,7 +47,11 @@ PeriodicTurbulence<dim, nspecies, nstate>::PeriodicTurbulence(const PHiLiP::Para
     
     // Navier-Stokes object; create using dynamic_pointer_cast and the create_Physics factory
     using PDE_enum = Parameters::AllParameters::PartialDifferentialEquation;
-    PHiLiP::Parameters::AllParameters parameters_navier_stokes = this->all_param;
+    Parameters::AllParameters all_parameters_write = (this->all_param); //pointer with write permission for Reynolds number declaration
+    if(this->all_param.pde_type == PDE_enum::euler) {
+        all_parameters_write.navier_stokes_param.reynolds_number_inf = 10000000;  //added arbitrary default to prevent test case failure
+            }
+    PHiLiP::Parameters::AllParameters parameters_navier_stokes = all_parameters_write;
     parameters_navier_stokes.pde_type = PDE_enum::navier_stokes;
     this->navier_stokes_physics = std::dynamic_pointer_cast<Physics::NavierStokes<dim,nspecies,dim+2,double>>(
                 Physics::PhysicsFactory<dim,nspecies,dim+2,double>::create_Physics(&parameters_navier_stokes));
