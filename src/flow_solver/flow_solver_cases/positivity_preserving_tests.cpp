@@ -7,17 +7,17 @@
 namespace PHiLiP {
 namespace FlowSolver {
 
-template <int dim, int nstate>
-PositivityPreservingTests<dim, nstate>::PositivityPreservingTests(const PHiLiP::Parameters::AllParameters *const parameters_input)
-    : CubeFlow_UniformGrid<dim, nstate>(parameters_input)
+template <int dim, int nspecies, int nstate>
+PositivityPreservingTests<dim, nspecies, nstate>::PositivityPreservingTests(const PHiLiP::Parameters::AllParameters *const parameters_input)
+    : CubeFlow_UniformGrid<dim, nspecies, nstate>(parameters_input)
     , unsteady_data_table_filename_with_extension(this->all_param.flow_solver_param.unsteady_data_table_filename+".txt")
 {
-    this->euler_physics = std::dynamic_pointer_cast<Physics::Euler<dim,dim+2,double>>(
-            PHiLiP::Physics::PhysicsFactory<dim,nstate,double>::create_Physics(&(this->all_param)));
+    this->euler_physics = std::dynamic_pointer_cast<Physics::Euler<dim,nspecies,dim+2,double>>(
+            PHiLiP::Physics::PhysicsFactory<dim,nspecies,nstate,double>::create_Physics(&(this->all_param)));
 }
 
-template <int dim, int nstate>
-std::shared_ptr<Triangulation> PositivityPreservingTests<dim,nstate>::generate_grid() const
+template <int dim, int nspecies, int nstate>
+std::shared_ptr<Triangulation> PositivityPreservingTests<dim,nspecies,nstate>::generate_grid() const
 {
     std::shared_ptr<Triangulation> grid = std::make_shared<Triangulation> (
     #if PHILIP_DIM!=1
@@ -68,14 +68,14 @@ std::shared_ptr<Triangulation> PositivityPreservingTests<dim,nstate>::generate_g
     return grid;
 }
 
-template <int dim, int nstate>
-void PositivityPreservingTests<dim,nstate>::display_additional_flow_case_specific_parameters() const
+template <int dim, int nspecies, int nstate>
+void PositivityPreservingTests<dim,nspecies,nstate>::display_additional_flow_case_specific_parameters() const
 {
     this->pcout << "- - Courant-Friedrichs-Lewy number: " << this->all_param.flow_solver_param.courant_friedrichs_lewy_number << std::endl;
 }
 
-template<int dim, int nstate>
-void PositivityPreservingTests<dim, nstate>::check_positivity_density(DGBase<dim, double>& dg)
+template<int dim, int nspecies, int nstate>
+void PositivityPreservingTests<dim, nspecies, nstate>::check_positivity_density(DGBase<dim, nspecies, double>& dg)
 {
     //create 1D solution polynomial basis functions and corresponding projection operator
     //to interpolate the solution to the quadrature nodes, and to project it back to the
@@ -83,8 +83,8 @@ void PositivityPreservingTests<dim, nstate>::check_positivity_density(DGBase<dim
     const unsigned int init_grid_degree = dg.max_grid_degree;
     const unsigned int poly_degree = this->all_param.flow_solver_param.poly_degree;
     //Constructor for the operators
-    OPERATOR::basis_functions<dim, 2 * dim, double> soln_basis(1, poly_degree, init_grid_degree);
-    OPERATOR::vol_projection_operator<dim, 2 * dim, double> soln_basis_projection_oper(1, dg.max_degree, init_grid_degree);
+    OPERATOR::basis_functions<dim, 2 * dim> soln_basis(1, poly_degree, init_grid_degree);
+    OPERATOR::vol_projection_operator<dim, 2 * dim> soln_basis_projection_oper(1, dg.max_degree, init_grid_degree);
 
 
     // Build the oneD operator to perform interpolation/projection
@@ -152,8 +152,8 @@ void PositivityPreservingTests<dim, nstate>::check_positivity_density(DGBase<dim
     }
 }
 
-template<int dim, int nstate>
-double PositivityPreservingTests<dim, nstate>::compute_integrated_entropy(DGBase<dim, double> &dg) const
+template<int dim, int nspecies, int nstate>
+double PositivityPreservingTests<dim, nspecies, nstate>::compute_integrated_entropy(DGBase<dim, nspecies, double> &dg) const
 {
     // Check that poly_degree is uniform everywhere
     if (dg.get_max_fe_degree() != dg.get_min_fe_degree()) {
@@ -173,8 +173,8 @@ double PositivityPreservingTests<dim, nstate>::compute_integrated_entropy(DGBase
     unsigned int n_quad_pts = dg.volume_quadrature_collection[poly_degree].size();
 
     // Construct the basis functions and mapping shape functions.
-    OPERATOR::basis_functions<dim,2*dim,double> soln_basis(1, poly_degree, grid_degree); 
-    OPERATOR::mapping_shape_functions<dim,2*dim,double> mapping_basis(1, poly_degree, grid_degree);
+    OPERATOR::basis_functions<dim,2*dim> soln_basis(1, poly_degree, grid_degree); 
+    OPERATOR::mapping_shape_functions<dim,2*dim> mapping_basis(1, poly_degree, grid_degree);
     // Build basis function volume operator from 1D finite element for 1 state.
     soln_basis.build_1D_volume_operator(dg.oneD_fe_collection_1state[poly_degree], quad_1D);
     // Build mapping shape functions operators using the oneD high_ordeR_grid finite element
@@ -276,10 +276,10 @@ double PositivityPreservingTests<dim, nstate>::compute_integrated_entropy(DGBase
     return integrated_quantity;
 }
 
-template <int dim, int nstate>
-void PositivityPreservingTests<dim, nstate>::compute_unsteady_data_and_write_to_table(
-    const std::shared_ptr<ODE::ODESolverBase<dim, double>> ode_solver,
-    const std::shared_ptr <DGBase<dim, double>> dg,
+template <int dim, int nspecies, int nstate>
+void PositivityPreservingTests<dim, nspecies, nstate>::compute_unsteady_data_and_write_to_table(
+    const std::shared_ptr<ODE::ODESolverBase<dim, nspecies, double>> ode_solver,
+    const std::shared_ptr <DGBase<dim, nspecies, double>> dg,
     const std::shared_ptr <dealii::TableHandler> unsteady_data_table,
     const bool do_write_unsteady_data_table_file)
 {
@@ -337,7 +337,8 @@ void PositivityPreservingTests<dim, nstate>::compute_unsteady_data_and_write_to_
     update_maximum_local_wave_speed(*dg);
 }
 
-template class PositivityPreservingTests<PHILIP_DIM, PHILIP_DIM+2>;
-
+#if PHILIP_SPECIES==1
+template class PositivityPreservingTests<PHILIP_DIM, PHILIP_SPECIES, PHILIP_DIM+2>;
+#endif
 } // FlowSolver namespace
 } // PHiLiP namespace

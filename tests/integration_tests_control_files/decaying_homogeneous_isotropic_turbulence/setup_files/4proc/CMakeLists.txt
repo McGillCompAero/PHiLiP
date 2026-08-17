@@ -7,8 +7,7 @@ set (filename "setup_philip-00000.dat")
 if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${filename})
     message(SEND_ERROR
             "Missing flow initialization files named ${filename}.
-             Please run PHiLiP/get_flow_initialization_files_local.sh or 
-             PHiLiP/get_flow_initialization_files_cluster.sh if compiling on the cluster."
+             Please run PHiLiP/get_large_test_files.sh."
             )
 endif()
 
@@ -16,8 +15,7 @@ set (filename "setup_philip-00001.dat")
 if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${filename})
     message(SEND_ERROR
             "Missing flow initialization files named ${filename}.
-             Please run PHiLiP/get_flow_initialization_files_local.sh or 
-             PHiLiP/get_flow_initialization_files_cluster.sh if compiling on the cluster."
+             Please run PHiLiP/get_large_test_files.sh."
             )
 endif()
 
@@ -25,8 +23,7 @@ set (filename "setup_philip-00002.dat")
 if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${filename})
     message(SEND_ERROR
             "Missing flow initialization files named ${filename}.
-             Please run PHiLiP/get_flow_initialization_files_local.sh or 
-             PHiLiP/get_flow_initialization_files_cluster.sh if compiling on the cluster."
+             Please run PHiLiP/get_large_test_files.sh."
             )
 endif()
 
@@ -34,7 +31,6 @@ set (filename "setup_philip-00003.dat")
 if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${filename})
     message(SEND_ERROR
             "Missing flow initialization files named ${filename}.
-             Please run PHiLiP/get_flow_initialization_files_local.sh or 
-             PHiLiP/get_flow_initialization_files_cluster.sh if compiling on the cluster."
+             Please run PHiLiP/get_large_test_files.sh."
             )
 endif()

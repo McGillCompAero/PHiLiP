@@ -62,6 +62,7 @@ int main (int argc, char * argv[])
     using namespace PHiLiP;
     std::cout << std::setprecision(std::numeric_limits<long double>::digits10 + 1) << std::scientific;
     const int dim = PHILIP_DIM;
+    const int nspecies = 1;
     dealii::ParameterHandler parameter_handler;
     PHiLiP::Parameters::AllParameters::declare_parameters (parameter_handler);
     dealii::ConditionalOStream pcout(std::cout, dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD)==0);
@@ -127,7 +128,7 @@ int main (int argc, char * argv[])
             all_parameters_new.all_boundaries_are_periodic = true;
             all_parameters_new.ode_solver_param.ode_solver_type = ODE_enum::runge_kutta_solver;//auxiliary only works explicit for now
             all_parameters_new.use_inverse_mass_on_the_fly = true;
-            std::shared_ptr < PHiLiP::DGBase<dim, double> > dg = PHiLiP::DGFactory<dim,double>::create_discontinuous_galerkin(&all_parameters_new, poly_degree, poly_degree, grid_degree, grid);
+            std::shared_ptr < PHiLiP::DGBase<dim, nspecies, double> > dg = PHiLiP::DGFactory<dim,nspecies,double>::create_discontinuous_galerkin(&all_parameters_new, poly_degree, poly_degree, grid_degree, grid);
             pcout<<"going in allocate"<<std::endl;
             dg->allocate_system (false,false,false);
             if(!all_parameters_new.use_inverse_mass_on_the_fly){
@@ -148,11 +149,11 @@ int main (int argc, char * argv[])
             const unsigned int n_grid_nodes = n_metric_dofs / dim;
             auto metric_cell = dg->high_order_grid->dof_handler_grid.begin_active();
 
-            PHiLiP::OPERATOR::mapping_shape_functions<dim,2*dim,real> mapping_basis(dg->nstate, poly_degree, 1);
+            PHiLiP::OPERATOR::mapping_shape_functions<dim,2*dim> mapping_basis(dg->nstate, poly_degree, 1);
             mapping_basis.build_1D_shape_functions_at_grid_nodes(dg->high_order_grid->oneD_fe_system, dg->high_order_grid->oneD_grid_nodes);
             mapping_basis.build_1D_shape_functions_at_flux_nodes(dg->high_order_grid->oneD_fe_system, dg->oneD_quadrature_collection[poly_degree], dg->oneD_face_quadrature);
 
-            OPERATOR::vol_projection_operator<dim,2*dim,real> vol_projection(dg->nstate, dg->max_degree, dg->max_grid_degree);
+            OPERATOR::vol_projection_operator<dim,2*dim> vol_projection(dg->nstate, dg->max_degree, dg->max_grid_degree);
             vol_projection.build_1D_volume_operator(dg->oneD_fe_collection[dg->max_degree], dg->oneD_quadrature_collection[dg->max_degree]);
 
             for (auto current_cell = dg->dof_handler.begin_active(); current_cell!=dg->dof_handler.end(); ++current_cell, ++metric_cell) {
@@ -203,7 +204,7 @@ int main (int argc, char * argv[])
 
             pcout<<"assembling aux residual"<<std::endl;
             //Get auxiliary solution
-            dg->assemble_auxiliary_residual();
+            dg->assemble_auxiliary_residual(false,false,false);
 
 
             //TEST ERROR OOA

@@ -46,22 +46,28 @@ export P4EST_DIR=$EBROOTP4EST
 export METIS_DIR=/cvmfs/soft.computecanada.ca/easybuild/software/2017/avx512/Compiler/intel2018.3/metis/5.1.0
 ##Export deal.ii directory
 export DEAL_II_DIR=/project/def-nadaraja/Libraries/dealii_updated_reinstalled/dealii/install/install
-export GMSH_DIR=/cvmfs/soft.computecanada.ca/easybuild/software/2020/avx512/Compiler/intel2020/gmsh/4.11.1
+export GMSH_DIR=/cvmfs/soft.computecanada.ca/easybuild/software/2020/avx512/Compiler/intel2020/gmsh/4.13.1
 export OMP_NUM_THREADS=1
 
  
 
 cd ${SLURM_TMPDIR}
-rsync  -axvH --no-g --no-p --exclude 'build_release' --exclude 'build_debug' --exclude .git --exclude '*.log' --exclude '*.out' ${SLURM_SUBMIT_DIR} .
+rsync  -axvH --no-g --no-p --exclude 'build_release' --exclude 'build_debug' --exclude 'build_multispecies' --exclude .git --exclude '*.log' --exclude '*.out' ${SLURM_SUBMIT_DIR} .
 mkdir build_release
 
 cd build_release
-cmake -DDEAL_II_DIR=$DEAL_II_DIR ../PHiLiP -DMPIMAX=${NUM_PROCS} -DCMAKE_BUILD_TYPE=Release -DGMSH_DIR=$GMSH_DIR/bin/gmsh -DGMSH_LIB=$GMSH_DIR -DCMAKE_SKIP_INSTALL_RPATH=ON 
+cmake -DDEAL_II_DIR=$DEAL_II_DIR ../PHiLiP -DMPIMAX=${NUM_PROCS} -DCMAKE_BUILD_TYPE=Release -DNUMBER_OF_SPECIES=1 -DGMSH_DIR=$GMSH_DIR/bin/gmsh -DGMSH_LIB=$GMSH_DIR -DCMAKE_SKIP_INSTALL_RPATH=ON 
 make -j${NUM_PROCS}
 
 
 if [ "${RUN_CTEST}" = true ]; then
     ctest
+	## Build and verify multi-species implementation as well
+	mkdir ${SLURM_TMPDIR}/build_multispecies
+	cd ${SLURM_TMPDIR}/build_multispecies
+	cmake -DDEAL_II_DIR=$DEAL_II_DIR ../PHiLiP -DMPIMAX=${NUM_PROCS} -DCMAKE_BUILD_TYPE=Release -DNUMBER_OF_SPECIES=2 -DGMSH_DIR=$GMSH_DIR/bin/gmsh -DGMSH_LIB=$GMSH_DIR -DCMAKE_SKIP_INSTALL_RPATH=ON
+	make -j${NUM_PROCS}
+	ctest
 fi
  
 
@@ -70,3 +76,6 @@ for((i=1;i<=3;i++)); do
 done
  
 rsync -axvH --no-g --no-p  ${SLURM_TMPDIR}/build_release ${SLURM_SUBMIT_DIR}
+if [ "${RUN_CTEST}" = true ]; then
+	rsync -axvH --no-g --no-p  ${SLURM_TMPDIR}/build_multispecies ${SLURM_SUBMIT_DIR}
+fi

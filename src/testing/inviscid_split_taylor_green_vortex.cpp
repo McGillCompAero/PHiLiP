@@ -1,6 +1,6 @@
 #include <fstream>
 #include "dg/dg_factory.hpp"
-#include "euler_split_inviscid_taylor_green_vortex.h"
+#include "inviscid_split_taylor_green_vortex.h"
 #include "physics/initial_conditions/set_initial_condition.h"
 #include "physics/initial_conditions/initial_condition_function.h"
 #include "mesh/grids/nonsymmetric_curved_periodic_grid.hpp"
@@ -9,29 +9,29 @@
 namespace PHiLiP {
 namespace Tests {
 
-template <int dim, int nstate>
-EulerTaylorGreen<dim, nstate>::EulerTaylorGreen(const Parameters::AllParameters *const parameters_input)
+template <int dim, int nspecies, int nstate>
+InviscidTaylorGreen<dim, nspecies, nstate>::InviscidTaylorGreen(const Parameters::AllParameters *const parameters_input)
     : TestsBase::TestsBase(parameters_input)
 {}
-template<int dim, int nstate>
-std::array<double,2> EulerTaylorGreen<dim, nstate>::compute_change_in_entropy(const std::shared_ptr < DGBase<dim, double> > &dg, unsigned int poly_degree) const
+template<int dim, int nspecies, int nstate>
+std::array<double,2> InviscidTaylorGreen<dim, nspecies, nstate>::compute_change_in_entropy(const std::shared_ptr < DGBase<dim, nspecies, double> > &dg, unsigned int poly_degree) const
 {
     const unsigned int n_dofs_cell = dg->fe_collection[poly_degree].dofs_per_cell;
     const unsigned int n_quad_pts = dg->volume_quadrature_collection[poly_degree].size();
     const unsigned int n_shape_fns = n_dofs_cell / nstate;
     //We have to project the vector of entropy variables because the mass matrix has an interpolation from solution nodes built into it.
-    OPERATOR::vol_projection_operator<dim,2*dim,double> vol_projection(1, poly_degree, dg->max_grid_degree);
+    OPERATOR::vol_projection_operator<dim,2*dim> vol_projection(1, poly_degree, dg->max_grid_degree);
     vol_projection.build_1D_volume_operator(dg->oneD_fe_collection_1state[poly_degree], dg->oneD_quadrature_collection[poly_degree]);
 
-    OPERATOR::basis_functions<dim,2*dim,double> soln_basis(1, poly_degree, dg->max_grid_degree);
+    OPERATOR::basis_functions<dim,2*dim> soln_basis(1, poly_degree, dg->max_grid_degree);
     soln_basis.build_1D_volume_operator(dg->oneD_fe_collection_1state[poly_degree], dg->oneD_quadrature_collection[poly_degree]);
 
     dealii::LinearAlgebra::distributed::Vector<double> entropy_var_hat_global(dg->right_hand_side);
     dealii::LinearAlgebra::distributed::Vector<double> energy_var_hat_global(dg->right_hand_side);
     std::vector<dealii::types::global_dof_index> dofs_indices (n_dofs_cell);
 
-    std::shared_ptr < Physics::Euler<dim, nstate, double > > euler_double  = std::dynamic_pointer_cast<Physics::Euler<dim,dim+2,double>>(PHiLiP::Physics::PhysicsFactory<dim,nstate,double>::create_Physics(dg->all_parameters));
-
+    std::shared_ptr< Physics::PhysicsBase<dim,nspecies,nstate,double> > physics_double  = std::dynamic_pointer_cast<Physics::PhysicsBase<dim,nspecies,nstate,double>>(
+                                                                                        Physics::PhysicsFactory<dim,nspecies,nstate,double>::create_Physics(dg->all_parameters));
     for (auto cell = dg->dof_handler.begin_active(); cell!=dg->dof_handler.end(); ++cell) {
         if (!cell->is_locally_owned()) continue;
         cell->get_dof_indices (dofs_indices);
@@ -61,8 +61,8 @@ std::array<double,2> EulerTaylorGreen<dim, nstate>::compute_change_in_entropy(co
             for(int istate=0; istate<nstate; istate++){
                 soln_state[istate] = soln_at_q[istate][iquad];
             }
-            std::array<double,nstate> entropy_var_state = euler_double->compute_entropy_variables(soln_state);
-            std::array<double,nstate> kin_energy_state = euler_double->compute_kinetic_energy_variables(soln_state);
+            std::array<double,nstate> entropy_var_state = physics_double->compute_entropy_variables(soln_state);
+            std::array<double,nstate> kin_energy_state = physics_double->compute_kinetic_energy_variables(soln_state);
             for(int istate=0; istate<nstate; istate++){
                 if(iquad==0){
                     entropy_var_at_q[istate].resize(n_quad_pts);
@@ -98,40 +98,40 @@ std::array<double,2> EulerTaylorGreen<dim, nstate>::compute_change_in_entropy(co
     change_entropy_and_energy[1] = energy_var_hat_global * dg->right_hand_side;
     return change_entropy_and_energy;
 }
-template<int dim, int nstate>
-double EulerTaylorGreen<dim, nstate>::compute_volume_term(const std::shared_ptr < DGBase<dim, double> > &dg, unsigned int poly_degree) const
+template<int dim, int nspecies, int nstate>
+double InviscidTaylorGreen<dim, nspecies, nstate>::compute_volume_term(const std::shared_ptr < DGBase<dim, nspecies, double> > &dg, unsigned int poly_degree) const
 {
     const unsigned int n_dofs_cell = dg->fe_collection[poly_degree].dofs_per_cell;
     const unsigned int n_quad_pts = dg->volume_quadrature_collection[poly_degree].size();
     const unsigned int n_shape_fns = n_dofs_cell / nstate;
     const unsigned int grid_degree = dg->high_order_grid->fe_system.tensor_degree();
 
-    OPERATOR::basis_functions<dim,2*dim,double> soln_basis(1, poly_degree, dg->max_grid_degree);
+    OPERATOR::basis_functions<dim,2*dim> soln_basis(1, poly_degree, dg->max_grid_degree);
     soln_basis.build_1D_volume_operator(dg->oneD_fe_collection_1state[poly_degree], dg->oneD_quadrature_collection[poly_degree]);
     soln_basis.build_1D_gradient_operator(dg->oneD_fe_collection_1state[poly_degree], dg->oneD_quadrature_collection[poly_degree]);
     soln_basis.build_1D_surface_operator(dg->oneD_fe_collection_1state[poly_degree], dg->oneD_face_quadrature);
 
-    OPERATOR::basis_functions<dim,2*dim,double> flux_basis(1, poly_degree, dg->max_grid_degree);
+    OPERATOR::basis_functions<dim,2*dim> flux_basis(1, poly_degree, dg->max_grid_degree);
     flux_basis.build_1D_volume_operator(dg->oneD_fe_collection_flux[poly_degree], dg->oneD_quadrature_collection[poly_degree]);
     flux_basis.build_1D_gradient_operator(dg->oneD_fe_collection_flux[poly_degree], dg->oneD_quadrature_collection[poly_degree]);
     flux_basis.build_1D_surface_operator(dg->oneD_fe_collection_flux[poly_degree], dg->oneD_face_quadrature);
 
-    OPERATOR::local_basis_stiffness<dim,2*dim,double> flux_basis_stiffness(1, poly_degree, dg->max_grid_degree, true);
+    OPERATOR::local_basis_stiffness<dim,2*dim> flux_basis_stiffness(1, poly_degree, dg->max_grid_degree, true);
     //flux basis stiffness operator for skew-symmetric form
     flux_basis_stiffness.build_1D_volume_operator(dg->oneD_fe_collection_flux[poly_degree], dg->oneD_quadrature_collection[poly_degree]);
 
-    OPERATOR::mapping_shape_functions<dim,2*dim,double> mapping_basis(1, poly_degree, grid_degree);
+    OPERATOR::mapping_shape_functions<dim,2*dim> mapping_basis(1, poly_degree, grid_degree);
     mapping_basis.build_1D_shape_functions_at_grid_nodes(dg->high_order_grid->oneD_fe_system, dg->high_order_grid->oneD_grid_nodes);
     mapping_basis.build_1D_shape_functions_at_flux_nodes(dg->high_order_grid->oneD_fe_system, dg->oneD_quadrature_collection[poly_degree], dg->oneD_face_quadrature);
     const std::vector<double> &oneD_vol_quad_weights = dg->oneD_quadrature_collection[poly_degree].get_weights();
 
-    OPERATOR::vol_projection_operator<dim,2*dim,double> vol_projection(1, poly_degree, dg->max_grid_degree);
+    OPERATOR::vol_projection_operator<dim,2*dim> vol_projection(1, poly_degree, dg->max_grid_degree);
     vol_projection.build_1D_volume_operator(dg->oneD_fe_collection_1state[poly_degree], dg->oneD_quadrature_collection[poly_degree]);
 
     std::vector<dealii::types::global_dof_index> dofs_indices (n_dofs_cell);
 
-    std::shared_ptr < Physics::Euler<dim, nstate, double > > euler_double  = std::dynamic_pointer_cast<Physics::Euler<dim,dim+2,double>>(PHiLiP::Physics::PhysicsFactory<dim,nstate,double>::create_Physics(dg->all_parameters));
-
+    std::shared_ptr< Physics::PhysicsBase<dim,nspecies,nstate,double> > physics_double  = std::dynamic_pointer_cast<Physics::PhysicsBase<dim,nspecies,nstate,double>>(
+                                                                                        Physics::PhysicsFactory<dim,nspecies,nstate,double>::create_Physics(dg->all_parameters));
     double volume_term = 0.0;
     auto metric_cell = dg->high_order_grid->dof_handler_grid.begin_active();
     for (auto cell = dg->dof_handler.begin_active(); cell!= dg->dof_handler.end(); ++cell, ++metric_cell) {
@@ -196,7 +196,7 @@ double EulerTaylorGreen<dim, nstate>::compute_volume_term(const std::shared_ptr 
                 soln_state[istate] = soln_at_q[istate][iquad];
             }
             std::array<double,nstate> energy_var;
-            energy_var = euler_double->compute_kinetic_energy_variables(soln_state);
+            energy_var = physics_double->compute_kinetic_energy_variables(soln_state);
             for(int istate=0; istate<nstate; istate++){
                 if(iquad==0){
                     energy_var_vol_int[istate].resize(n_quad_pts);
@@ -253,11 +253,11 @@ double EulerTaylorGreen<dim, nstate>::compute_volume_term(const std::shared_ptr 
                     soln_state_flux_basis[istate] = soln_at_q[istate][flux_basis];
                 }
                 //Compute the physical flux
-                conv_phys_flux_2pt = euler_double->convective_numerical_split_flux(soln_state, soln_state_flux_basis);
+                conv_phys_flux_2pt = physics_double->convective_numerical_split_flux(soln_state, soln_state_flux_basis);
 
                 //Need to subtract off the pressure average term
-                const double pressure_int = euler_double->compute_pressure(soln_state);
-                const double pressure_ext = euler_double->compute_pressure(soln_state_flux_basis);
+                const double pressure_int = physics_double->compute_pressure(soln_state);
+                const double pressure_ext = physics_double->compute_pressure(soln_state_flux_basis);
                 for(int idim=0; idim<dim; idim++){
                     conv_phys_flux_2pt[1+idim][idim] -= 0.5*(pressure_int + pressure_ext);
                 }
@@ -328,25 +328,25 @@ double EulerTaylorGreen<dim, nstate>::compute_volume_term(const std::shared_ptr 
     return volume_term;
 }
 
-template<int dim, int nstate>
-double EulerTaylorGreen<dim, nstate>::compute_entropy(const std::shared_ptr < DGBase<dim, double> > &dg, unsigned int poly_degree) const
+template<int dim, int nspecies, int nstate>
+double InviscidTaylorGreen<dim, nspecies, nstate>::compute_entropy(const std::shared_ptr < DGBase<dim, nspecies, double> > &dg, unsigned int poly_degree) const
 {
     const unsigned int n_dofs_cell = dg->fe_collection[poly_degree].dofs_per_cell;
     const unsigned int n_quad_pts = dg->volume_quadrature_collection[poly_degree].size();
     const unsigned int n_shape_fns = n_dofs_cell / nstate;
     //We have to project the vector of entropy variables because the mass matrix has an interpolation from solution nodes built into it.
 
-    OPERATOR::basis_functions<dim,2*dim,double> soln_basis(1, poly_degree, dg->max_grid_degree);
+    OPERATOR::basis_functions<dim,2*dim> soln_basis(1, poly_degree, dg->max_grid_degree);
     soln_basis.build_1D_volume_operator(dg->oneD_fe_collection_1state[poly_degree], dg->oneD_quadrature_collection[poly_degree]);
 
-    OPERATOR::mapping_shape_functions<dim,2*dim,double> mapping_basis(1, poly_degree, dg->max_grid_degree);
+    OPERATOR::mapping_shape_functions<dim,2*dim> mapping_basis(1, poly_degree, dg->max_grid_degree);
     mapping_basis.build_1D_shape_functions_at_grid_nodes(dg->high_order_grid->oneD_fe_system, dg->high_order_grid->oneD_grid_nodes);
     mapping_basis.build_1D_shape_functions_at_flux_nodes(dg->high_order_grid->oneD_fe_system, dg->oneD_quadrature_collection[poly_degree], dg->oneD_face_quadrature);
 
     std::vector<dealii::types::global_dof_index> dofs_indices (n_dofs_cell);
 
-    std::shared_ptr < Physics::Euler<dim, nstate, double > > euler_double  = std::dynamic_pointer_cast<Physics::Euler<dim,dim+2,double>>(PHiLiP::Physics::PhysicsFactory<dim,nstate,double>::create_Physics(dg->all_parameters));
-
+    std::shared_ptr< Physics::PhysicsBase<dim,nspecies,nstate,double> > physics_double  = std::dynamic_pointer_cast<Physics::PhysicsBase<dim,nspecies,nstate,double>>(
+                                                                                        Physics::PhysicsFactory<dim,nspecies,nstate,double>::create_Physics(dg->all_parameters));
     double entropy_fn = 0.0;
     const std::vector<double> &quad_weights = dg->volume_quadrature_collection[poly_degree].get_weights();
 
@@ -407,9 +407,13 @@ double EulerTaylorGreen<dim, nstate>::compute_entropy(const std::shared_ptr < DG
                 soln_state[istate] = soln_at_q[istate][iquad];
             }
             const double density = soln_state[0];
-            const double pressure = euler_double->compute_pressure(soln_state);
-            const double entropy = log(pressure) - euler_double->gam * log(density);
-            const double quadrature_entropy = -density*entropy/euler_double->gamm1;
+            const double entropy = physics_double->compute_entropy(soln_state);
+            double quadrature_entropy = 0.0;
+            if (nspecies == 1)
+                quadrature_entropy = -density*entropy/(physics_double->compute_gamma(soln_state)-1);
+            else {
+                quadrature_entropy = -density*entropy;
+            }
 
             entropy_fn += quadrature_entropy * quad_weights[iquad] * metric_oper.det_Jac_vol[iquad];
 
@@ -419,8 +423,8 @@ double EulerTaylorGreen<dim, nstate>::compute_entropy(const std::shared_ptr < DG
     return entropy_fn;
 }
 
-template<int dim, int nstate>
-double EulerTaylorGreen<dim, nstate>::compute_kinetic_energy(const std::shared_ptr < DGBase<dim, double> > &dg, unsigned int poly_degree) const
+template<int dim, int nspecies, int nstate>
+double InviscidTaylorGreen<dim, nspecies, nstate>::compute_kinetic_energy(const std::shared_ptr < DGBase<dim, nspecies, double> > &dg, unsigned int poly_degree) const
 {
     //returns the energy in the L2-norm (physically relevant)
     int overintegrate = 10 ;
@@ -430,10 +434,10 @@ double EulerTaylorGreen<dim, nstate>::compute_kinetic_energy(const std::shared_p
     const unsigned int n_shape_fns = n_dofs_cell / nstate;
     //We have to project the vector of entropy variables because the mass matrix has an interpolation from solution nodes built into it.
 
-    OPERATOR::basis_functions<dim,2*dim,double> soln_basis(1, poly_degree, dg->max_grid_degree);
+    OPERATOR::basis_functions<dim,2*dim> soln_basis(1, poly_degree, dg->max_grid_degree);
     soln_basis.build_1D_volume_operator(dg->oneD_fe_collection_1state[poly_degree], dg->oneD_quadrature_collection[poly_degree]);
 
-    OPERATOR::mapping_shape_functions<dim,2*dim,double> mapping_basis(1, poly_degree, dg->max_grid_degree);
+    OPERATOR::mapping_shape_functions<dim,2*dim> mapping_basis(1, poly_degree, dg->max_grid_degree);
     mapping_basis.build_1D_shape_functions_at_grid_nodes(dg->high_order_grid->oneD_fe_system, dg->high_order_grid->oneD_grid_nodes);
     mapping_basis.build_1D_shape_functions_at_flux_nodes(dg->high_order_grid->oneD_fe_system, dg->oneD_quadrature_collection[poly_degree], dg->oneD_face_quadrature);
 
@@ -511,8 +515,8 @@ double EulerTaylorGreen<dim, nstate>::compute_kinetic_energy(const std::shared_p
     return total_kinetic_energy;
 }
 
-template<int dim, int nstate>
-double EulerTaylorGreen<dim, nstate>::get_timestep(const std::shared_ptr < DGBase<dim, double> > &dg, unsigned int poly_degree, const double delta_x) const
+template<int dim, int nspecies, int nstate>
+double InviscidTaylorGreen<dim, nspecies, nstate>::get_timestep(const std::shared_ptr < DGBase<dim, nspecies, double> > &dg, unsigned int poly_degree, const double delta_x) const
 {
     //get local CFL
     const unsigned int n_dofs_cell = nstate*pow(poly_degree+1,dim);
@@ -520,7 +524,9 @@ double EulerTaylorGreen<dim, nstate>::get_timestep(const std::shared_ptr < DGBas
     std::vector<dealii::types::global_dof_index> dofs_indices1 (n_dofs_cell);
 
     double cfl_min = 1e100;
-    std::shared_ptr < Physics::PhysicsBase<dim, nstate, double > > pde_physics_double  = PHiLiP::Physics::PhysicsFactory<dim,nstate,double>::create_Physics(dg->all_parameters);
+    std::shared_ptr< Physics::PhysicsBase<dim,nspecies,nstate,double> > physics_double  = std::dynamic_pointer_cast<Physics::PhysicsBase<dim,nspecies,nstate,double>>(
+                                                                                        Physics::PhysicsFactory<dim,nspecies,nstate,double>::create_Physics(dg->all_parameters));
+
     for (auto cell = dg->dof_handler.begin_active(); cell!=dg->dof_handler.end(); ++cell) {
         if (!cell->is_locally_owned()) continue;
 
@@ -541,7 +547,7 @@ double EulerTaylorGreen<dim, nstate>::get_timestep(const std::shared_ptr < DGBas
 
         std::vector< double > convective_eigenvalues(n_quad_pts);
         for (unsigned int isol = 0; isol < n_quad_pts; ++isol) {
-            convective_eigenvalues[isol] = pde_physics_double->max_convective_eigenvalue (soln_at_q[isol]);
+            convective_eigenvalues[isol] = physics_double->max_convective_eigenvalue (soln_at_q[isol]);
         }
         const double max_eig = *(std::max_element(convective_eigenvalues.begin(), convective_eigenvalues.end()));
 
@@ -553,8 +559,8 @@ double EulerTaylorGreen<dim, nstate>::get_timestep(const std::shared_ptr < DGBas
     return cfl_min;
 }
 
-template <int dim, int nstate>
-int EulerTaylorGreen<dim, nstate>::run_test() const
+template <int dim, int nspecies, int nstate>
+int InviscidTaylorGreen<dim, nspecies, nstate>::run_test() const
 {
     using Triangulation = dealii::parallel::distributed::Triangulation<dim>;
     std::shared_ptr<Triangulation> grid = std::make_shared<Triangulation>(
@@ -582,13 +588,13 @@ int EulerTaylorGreen<dim, nstate>::run_test() const
     }
 
     // Create DG
-    std::shared_ptr < PHiLiP::DGBase<dim, double> > dg = PHiLiP::DGFactory<dim,double>::create_discontinuous_galerkin(&all_parameters_new, poly_degree, poly_degree, grid_degree, grid);
+    std::shared_ptr < PHiLiP::DGBase<dim, nspecies, double> > dg = PHiLiP::DGFactory<dim,nspecies,double>::create_discontinuous_galerkin(&all_parameters_new, poly_degree, poly_degree, grid_degree, grid);
     dg->allocate_system (false,false,false);
 
     pcout << "Implement initial conditions" << std::endl;
-    std::shared_ptr< InitialConditionFunction<dim,nstate,double> > initial_condition_function = 
-                InitialConditionFactory<dim,nstate,double>::create_InitialConditionFunction(&all_parameters_new);
-    SetInitialCondition<dim,nstate,double>::set_initial_condition(initial_condition_function, dg, &all_parameters_new);
+    std::shared_ptr< InitialConditionFunction<dim,nspecies,nstate,double> > initial_condition_function = 
+                InitialConditionFactory<dim,nspecies,nstate,double>::create_InitialConditionFunction(&all_parameters_new);
+    SetInitialCondition<dim,nspecies,nstate,double>::set_initial_condition(initial_condition_function, dg, &all_parameters_new);
 
     const unsigned int n_global_active_cells2 = grid->n_global_active_cells();
     double delta_x = (right-left)/pow(n_global_active_cells2,1.0/dim)/(poly_degree+1.0);
@@ -597,22 +603,27 @@ int EulerTaylorGreen<dim, nstate>::run_test() const
     all_parameters_new.ode_solver_param.initial_time_step =  get_timestep(dg,poly_degree,delta_x);
      
     pcout << "creating ODE solver" << std::endl;
-    std::shared_ptr<ODE::ODESolverBase<dim, double>> ode_solver = ODE::ODESolverFactory<dim, double>::create_ODESolver(dg);
+    std::shared_ptr<ODE::ODESolverBase<dim, nspecies, double>> ode_solver = ODE::ODESolverFactory<dim, nspecies, double>::create_ODESolver(dg);
     pcout << "ODE solver successfully created" << std::endl;
     double finalTime = 14.;
 
     pcout << " number dofs " << dg->dof_handler.n_dofs()<<std::endl;
     pcout << "preparing to advance solution in time" << std::endl;
+    if(nspecies > 1)
+        pcout << "WARNING: entropy change is not calculated for multi-species since EC fluxes have not been implemented yet..." << std::endl;
 
     ode_solver->current_iteration = 0;
     ode_solver->allocate_ode_system();
 
     const double initial_energy = compute_kinetic_energy(dg, poly_degree);
     const double initial_energy_mpi = (dealii::Utilities::MPI::sum(initial_energy, mpi_communicator));
-    const double initial_entropy = compute_entropy(dg, poly_degree);
+    double initial_entropy = 1e6;
+    if(nspecies == 1)
+        initial_entropy = compute_entropy(dg, poly_degree);
     const double initial_entropy_mpi = (dealii::Utilities::MPI::sum(initial_entropy, mpi_communicator));
     //create a file to wirte entorpy and energy results to
     std::ofstream myfile (all_parameters_new.energy_file + ".gpl"  , std::ios::trunc);
+    myfile << "time change_in_entropy KE_volume_work" << std::endl;
     //loop over time
     while(ode_solver->current_time < finalTime){
         //get timestep
@@ -635,9 +646,9 @@ int EulerTaylorGreen<dim, nstate>::run_test() const
         const std::array<double,2> current_change_entropy = compute_change_in_entropy(dg, poly_degree);
         const double current_change_entropy_mpi = dealii::Utilities::MPI::sum(current_change_entropy[0], mpi_communicator);
         const double current_change_energy_mpi = dealii::Utilities::MPI::sum(current_change_entropy[1], mpi_communicator);
-        //write to the file the change in entropy mpi
-        myfile<<ode_solver->current_time<<" "<< current_change_entropy_mpi <<std::endl;
-        pcout << "M plus K norm Change in Entropy at time " << ode_solver->current_time << " is " << current_change_entropy_mpi<< std::endl;
+
+        if(nspecies==1)
+            pcout << "M plus K norm Change in Entropy at time " << ode_solver->current_time << " is " << current_change_entropy_mpi<< std::endl;
         pcout << "M plus K norm Change in Kinetic Energy at time " << ode_solver->current_time << " is " << current_change_energy_mpi<< std::endl;
         //check if change in entropy is conserved at machine precision
         if(abs(current_change_entropy[0]) > 1e-12 && (dg->all_parameters->two_point_num_flux_type == Parameters::AllParameters::TwoPointNumericalFlux::IR || dg->all_parameters->two_point_num_flux_type == Parameters::AllParameters::TwoPointNumericalFlux::CH || dg->all_parameters->two_point_num_flux_type == Parameters::AllParameters::TwoPointNumericalFlux::Ra)){
@@ -649,16 +660,24 @@ int EulerTaylorGreen<dim, nstate>::run_test() const
         const double current_energy = compute_kinetic_energy(dg, poly_degree);
         const double current_energy_mpi = (dealii::Utilities::MPI::sum(current_energy, mpi_communicator));
         pcout << "Normalized kinetic energy " << ode_solver->current_time << " is " << current_energy_mpi/initial_energy_mpi<< std::endl;
-        //get the entropy
-        const double current_entropy = compute_entropy(dg, poly_degree);
-        const double current_entropy_mpi = (dealii::Utilities::MPI::sum(current_entropy, mpi_communicator));
-        pcout << "Normalized entropy " << ode_solver->current_time << " is " << current_entropy_mpi/initial_entropy_mpi<< std::endl;
+        if(nspecies==1) {
+            //get the entropy
+            const double current_entropy = compute_entropy(dg, poly_degree);
+            const double current_entropy_mpi = (dealii::Utilities::MPI::sum(current_entropy, mpi_communicator));
+            pcout << "Normalized entropy " << ode_solver->current_time << " is " << current_entropy_mpi/initial_entropy_mpi<< std::endl;
+        }
 
         //get the volume work for kinetic energy
         double current_vol_work = compute_volume_term(dg, poly_degree);
         double current_vol_work_mpi = (dealii::Utilities::MPI::sum(current_vol_work, mpi_communicator));
         pcout<<"volume work "<<current_vol_work_mpi<<std::endl;
-        myfile << ode_solver->current_time << " " << std::fixed << std::setprecision(16) << current_vol_work_mpi<< std::endl;
+
+        //output the entropy change and volume work to file
+        if(nspecies==1)
+            myfile << ode_solver->current_time << " " << std::fixed << std::setprecision(16) << current_change_entropy_mpi << " " << current_vol_work_mpi<< std::endl;
+        else
+            myfile << ode_solver->current_time << " " << std::fixed << std::setprecision(16) << "N/A " << current_vol_work_mpi<< std::endl;
+
         //check for non overintegrated case
         if(!all_parameters->use_curvilinear_grid and all_parameters->overintegration == 0){
             if(abs(current_vol_work_mpi) > 1e-12 && (dg->all_parameters->two_point_num_flux_type == Parameters::AllParameters::TwoPointNumericalFlux::Ra || dg->all_parameters->two_point_num_flux_type == Parameters::AllParameters::TwoPointNumericalFlux::KG ) ){
@@ -673,7 +692,7 @@ int EulerTaylorGreen<dim, nstate>::run_test() const
 }
 
 #if PHILIP_DIM==3
-    template class EulerTaylorGreen <PHILIP_DIM,PHILIP_DIM+2>;
+    template class InviscidTaylorGreen <PHILIP_DIM, PHILIP_SPECIES,PHILIP_DIM+PHILIP_SPECIES+1>;
 #endif
 
 } // Tests namespace

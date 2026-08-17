@@ -32,13 +32,13 @@
 
 namespace PHiLiP {
 namespace Tests {
-template <int dim, int nstate>
-AdvectionPeriodic<dim, nstate>::AdvectionPeriodic(const PHiLiP::Parameters::AllParameters *const parameters_input)
+template <int dim, int nspecies, int nstate>
+AdvectionPeriodic<dim, nspecies, nstate>::AdvectionPeriodic(const PHiLiP::Parameters::AllParameters *const parameters_input)
     : TestsBase::TestsBase(parameters_input)
 {}
 
-template<int dim, int nstate>
-double AdvectionPeriodic<dim, nstate>::compute_energy(std::shared_ptr < PHiLiP::DGBase<dim, double> > &dg) const
+template<int dim, int nspecies, int nstate>
+double AdvectionPeriodic<dim, nspecies, nstate>::compute_energy(std::shared_ptr < PHiLiP::DGBase<dim, nspecies, double> > &dg) const
 {
 	double energy = 0.0;
         dealii::LinearAlgebra::distributed::Vector<double> mass_matrix_times_solution(dg->right_hand_side);
@@ -53,8 +53,8 @@ double AdvectionPeriodic<dim, nstate>::compute_energy(std::shared_ptr < PHiLiP::
     return energy;
 }
 
-template<int dim, int nstate>
-double AdvectionPeriodic<dim, nstate>::compute_conservation(std::shared_ptr < PHiLiP::DGBase<dim, double> > &dg, const double poly_degree) const
+template<int dim, int nspecies, int nstate>
+double AdvectionPeriodic<dim, nspecies, nstate>::compute_conservation(std::shared_ptr < PHiLiP::DGBase<dim, nspecies, double> > &dg, const double poly_degree) const
 {
         //Conservation \f$ =  \int 1 * u d\Omega_m \f$
         double conservation = 0.0;
@@ -74,7 +74,7 @@ double AdvectionPeriodic<dim, nstate>::compute_conservation(std::shared_ptr < PH
         // Projected vector of ones. That is, the interpolation of ones_hat to the volume nodes is 1.
         std::vector<double> ones_hat(n_dofs_cell);
         // We have to project the vector of ones because the mass matrix has an interpolation from solution nodes built into it.
-        OPERATOR::vol_projection_operator<dim,2*dim,double> vol_projection(dg->nstate, poly_degree, dg->max_grid_degree);
+        OPERATOR::vol_projection_operator<dim,2*dim> vol_projection(dg->nstate, poly_degree, dg->max_grid_degree);
         vol_projection.build_1D_volume_operator(dg->oneD_fe_collection[poly_degree], dg->oneD_quadrature_collection[poly_degree]);
         vol_projection.matrix_vector_mult_1D(ones, ones_hat,
                                                    vol_projection.oneD_vol_operator);
@@ -94,8 +94,8 @@ double AdvectionPeriodic<dim, nstate>::compute_conservation(std::shared_ptr < PH
     return conservation;
 }
 
-template <int dim, int nstate>
-int AdvectionPeriodic<dim, nstate>::run_test() const
+template <int dim, int nspecies, int nstate>
+int AdvectionPeriodic<dim, nspecies, nstate>::run_test() const
 {
 
     printf("starting test\n");
@@ -147,17 +147,17 @@ int AdvectionPeriodic<dim, nstate>::run_test() const
         std::cout << "cells " <<n_global_active_cells2 <<  std::endl;
 
         //Set the DG spatial sys
-        std::shared_ptr < PHiLiP::DGBase<dim, double> > dg = PHiLiP::DGFactory<dim,double>::create_discontinuous_galerkin(&all_parameters_new, poly_degree, poly_degree, grid_degree, grid);
+        std::shared_ptr < PHiLiP::DGBase<dim, nspecies, double> > dg = PHiLiP::DGFactory<dim,nspecies,double>::create_discontinuous_galerkin(&all_parameters_new, poly_degree, poly_degree, grid_degree, grid);
         dg->allocate_system (false,false,false);
 
         std::cout << "Implement initial conditions" << std::endl;
         // Create initial condition function
-        std::shared_ptr< InitialConditionFunction<dim,nstate,double> > initial_condition_function = 
-                InitialConditionFactory<dim,nstate,double>::create_InitialConditionFunction(&all_parameters_new); 
-        SetInitialCondition<dim,nstate,double>::set_initial_condition(initial_condition_function, dg, &all_parameters_new);
+        std::shared_ptr< InitialConditionFunction<dim,nspecies,nstate,double> > initial_condition_function = 
+                InitialConditionFactory<dim,nspecies,nstate,double>::create_InitialConditionFunction(&all_parameters_new); 
+        SetInitialCondition<dim,nspecies,nstate,double>::set_initial_condition(initial_condition_function, dg, &all_parameters_new);
 
         // Create ODE solver using the factory and providing the DG object
-        std::shared_ptr<PHiLiP::ODE::ODESolverBase<dim, double>> ode_solver = PHiLiP::ODE::ODESolverFactory<dim, double>::create_ODESolver(dg);
+        std::shared_ptr<PHiLiP::ODE::ODESolverBase<dim, nspecies, double>> ode_solver = PHiLiP::ODE::ODESolverFactory<dim, nspecies, double>::create_ODESolver(dg);
         double finalTime = 2.0;
         if constexpr(dim==3) finalTime = 0.1;//to speed things up locally
     	
@@ -365,7 +365,8 @@ int AdvectionPeriodic<dim, nstate>::run_test() const
     return 0;//if reaches here mean passed test 
 }
 
-template class AdvectionPeriodic <PHILIP_DIM,1>;
-
+#if PHILIP_SPECIES==1
+template class AdvectionPeriodic <PHILIP_DIM, PHILIP_SPECIES,1>;
+#endif
 } //Tests namespace
 } //PHiLiP namespace

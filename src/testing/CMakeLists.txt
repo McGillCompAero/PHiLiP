@@ -18,7 +18,7 @@ set(TESTS_SOURCE
     euler_entropy_waves.cpp
     advection_explicit_periodic.cpp
     convection_diffusion_explicit_periodic.cpp
-    euler_split_inviscid_taylor_green_vortex.cpp
+    inviscid_split_taylor_green_vortex.cpp
     TGV_scaling.cpp
     optimization_inverse_manufactured/optimization_inverse_manufactured.cpp
     dual_weighted_residual_mesh_adaptation.cpp
@@ -47,6 +47,7 @@ set(TESTS_SOURCE
     halton_sampling_run.cpp
     bound_preserving_limiter_tests.cpp
     naca0012_unsteady_check_quick.cpp
+    multispecies_vortex_advection.cpp
     turbulent_channel_flow_skin_friction_check.cpp
     dipole_wall_collision_unsteady_quantity_check.cpp
     turbulent_channel_flow_unsteady_quantity_check.cpp
@@ -58,6 +59,9 @@ foreach(dim RANGE 1 3)
     add_library(${TestsLib} STATIC ${TESTS_SOURCE})
     # Replace occurences of PHILIP_DIM with 1, 2, or 3 in the code
     target_compile_definitions(${TestsLib} PRIVATE PHILIP_DIM=${dim})
+    # Replace occurences of PHILIP_SPECIES with 1 in the code
+    # NOTE: PHILIP_SPECIES will become user defined in a future PR
+    target_compile_definitions(${TestsLib} PRIVATE PHILIP_SPECIES=${NUMBER_OF_SPECIES})
 
     # Library dependency
     string(CONCAT GridsLib Grids_${dim}D)

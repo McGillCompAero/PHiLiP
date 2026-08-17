@@ -21,9 +21,9 @@ namespace FlowSolver {
 //=========================================================
 // TURBULENCE IN PERIODIC CUBE DOMAIN
 //=========================================================
-template <int dim, int nstate>
-PeriodicTurbulence<dim, nstate>::PeriodicTurbulence(const PHiLiP::Parameters::AllParameters *const parameters_input)
-        : PeriodicCubeFlow<dim, nstate>(parameters_input)
+template <int dim, int nspecies, int nstate>
+PeriodicTurbulence<dim, nspecies, nstate>::PeriodicTurbulence(const PHiLiP::Parameters::AllParameters *const parameters_input)
+        : PeriodicCubeFlow<dim, nspecies, nstate>(parameters_input)
         , unsteady_data_table_filename_with_extension(this->all_param.flow_solver_param.unsteady_data_table_filename+".txt")
         , number_of_times_to_output_velocity_field(this->all_param.flow_solver_param.number_of_times_to_output_velocity_field)
         , output_velocity_field_at_fixed_times(this->all_param.flow_solver_param.output_velocity_field_at_fixed_times)
@@ -49,8 +49,8 @@ PeriodicTurbulence<dim, nstate>::PeriodicTurbulence(const PHiLiP::Parameters::Al
     using PDE_enum = Parameters::AllParameters::PartialDifferentialEquation;
     PHiLiP::Parameters::AllParameters parameters_navier_stokes = this->all_param;
     parameters_navier_stokes.pde_type = PDE_enum::navier_stokes;
-    this->navier_stokes_physics = std::dynamic_pointer_cast<Physics::NavierStokes<dim,dim+2,double>>(
-                Physics::PhysicsFactory<dim,dim+2,double>::create_Physics(&parameters_navier_stokes));
+    this->navier_stokes_physics = std::dynamic_pointer_cast<Physics::NavierStokes<dim,nspecies,dim+2,double>>(
+                Physics::PhysicsFactory<dim,nspecies,dim+2,double>::create_Physics(&parameters_navier_stokes));
 
     /* Initialize integrated quantities as NAN; 
        done as a precaution in the case compute_integrated_quantities() is not called
@@ -96,8 +96,8 @@ PeriodicTurbulence<dim, nstate>::PeriodicTurbulence(const PHiLiP::Parameters::Al
     }
 }
 
-template <int dim, int nstate>
-void PeriodicTurbulence<dim,nstate>::display_additional_flow_case_specific_parameters() const
+template <int dim, int nspecies, int nstate>
+void PeriodicTurbulence<dim,nspecies,nstate>::display_additional_flow_case_specific_parameters() const
 {
     if(this->all_param.flow_solver_param.adaptive_time_step)
         this->pcout << "- - Courant-Friedrichs-Lewy number: " << this->all_param.flow_solver_param.courant_friedrichs_lewy_number << std::endl;
@@ -111,8 +111,8 @@ void PeriodicTurbulence<dim,nstate>::display_additional_flow_case_specific_param
     this->display_grid_parameters();
 }
 
-template <int dim, int nstate>
-double PeriodicTurbulence<dim,nstate>::get_constant_time_step(std::shared_ptr<DGBase<dim,double>> dg) const
+template <int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim,nspecies,nstate>::get_constant_time_step(std::shared_ptr<DGBase<dim,nspecies,double>> dg) const
 {
     if(this->all_param.flow_solver_param.constant_time_step > 0.0) {
         const double constant_time_step = this->all_param.flow_solver_param.constant_time_step;
@@ -125,8 +125,8 @@ double PeriodicTurbulence<dim,nstate>::get_constant_time_step(std::shared_ptr<DG
     }
 }
 
-template <int dim, int nstate>
-unsigned int PeriodicTurbulence<dim,nstate>::get_number_of_degrees_of_freedom_per_state_from_poly_degree(const unsigned int poly_degree_input) const
+template <int dim, int nspecies, int nstate>
+unsigned int PeriodicTurbulence<dim,nspecies,nstate>::get_number_of_degrees_of_freedom_per_state_from_poly_degree(const unsigned int poly_degree_input) const
 {
     // expression for a uniform grid (i.e. same number of cells in all directions)
     const unsigned int number_of_degrees_of_freedom_per_state = pow(this->number_of_cells_per_direction*(poly_degree_input+1),dim);
@@ -143,9 +143,9 @@ std::string get_padded_mpi_rank_string(const int mpi_rank_input) {
     return mpi_rank_string;
 }
 
-template<int dim, int nstate>
-void PeriodicTurbulence<dim, nstate>::output_velocity_field(
-    std::shared_ptr<DGBase<dim,double>> dg,
+template<int dim, int nspecies, int nstate>
+void PeriodicTurbulence<dim, nspecies, nstate>::output_velocity_field(
+    std::shared_ptr<DGBase<dim,nspecies,double>> dg,
     const unsigned int output_file_index,
     const double current_time) const
 {
@@ -198,12 +198,12 @@ void PeriodicTurbulence<dim, nstate>::output_velocity_field(
     const unsigned int n_quad_pts = pow(vol_quad_equidistant_1D.size(),dim);
 
     const unsigned int init_grid_degree = dg->high_order_grid->fe_system.tensor_degree();
-    OPERATOR::basis_functions<dim,2*dim,double> soln_basis(1, dg->max_degree, init_grid_degree); 
+    OPERATOR::basis_functions<dim,2*dim> soln_basis(1, dg->max_degree, init_grid_degree); 
     soln_basis.build_1D_volume_operator(dg->oneD_fe_collection_1state[dg->max_degree], vol_quad_equidistant_1D);
     soln_basis.build_1D_gradient_operator(dg->oneD_fe_collection_1state[dg->max_degree], vol_quad_equidistant_1D);
 
     // mapping basis for the equidistant node set because we output the physical coordinates
-    OPERATOR::mapping_shape_functions<dim,2*dim,double> mapping_basis_at_equidistant(1, dg->max_degree, init_grid_degree);
+    OPERATOR::mapping_shape_functions<dim,2*dim> mapping_basis_at_equidistant(1, dg->max_degree, init_grid_degree);
     mapping_basis_at_equidistant.build_1D_shape_functions_at_grid_nodes(dg->high_order_grid->oneD_fe_system, dg->high_order_grid->oneD_grid_nodes);
     mapping_basis_at_equidistant.build_1D_shape_functions_at_flux_nodes(dg->high_order_grid->oneD_fe_system, vol_quad_equidistant_1D, dg->oneD_face_quadrature);
 
@@ -357,8 +357,8 @@ void PeriodicTurbulence<dim, nstate>::output_velocity_field(
     this->pcout << "done." << std::endl;
 }
 
-template <int dim, int nstate>
-double PeriodicTurbulence<dim,nstate>::get_adaptive_time_step(std::shared_ptr<DGBase<dim,double>> dg) const
+template <int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim,nspecies,nstate>::get_adaptive_time_step(std::shared_ptr<DGBase<dim,nspecies,double>> dg) const
 {
     // compute time step based on advection speed (i.e. maximum local wave speed)
     const unsigned int number_of_degrees_of_freedom_per_state = dg->dof_handler.n_dofs()/nstate;
@@ -368,8 +368,8 @@ double PeriodicTurbulence<dim,nstate>::get_adaptive_time_step(std::shared_ptr<DG
     return time_step;
 }
 
-template<int dim, int nstate>
-void PeriodicTurbulence<dim, nstate>::update_maximum_local_wave_speed(DGBase<dim, double> &dg)
+template<int dim, int nspecies, int nstate>
+void PeriodicTurbulence<dim, nspecies, nstate>::update_maximum_local_wave_speed(DGBase<dim, nspecies, double> &dg)
 {
     // Initialize the maximum local wave speed to zero
     this->maximum_local_wave_speed = 0.0;
@@ -382,7 +382,7 @@ void PeriodicTurbulence<dim, nstate>::update_maximum_local_wave_speed(DGBase<dim
     dealii::QGauss<dim> quad_extra(dg.max_degree+1+overintegrate);
     const unsigned int n_quad_pts = quad_extra.size();
     dealii::QGauss<1> quad_extra_1D(dg.max_degree+1+overintegrate);
-    OPERATOR::basis_functions<dim,2*dim,double> soln_basis(1, poly_degree, grid_degree); 
+    OPERATOR::basis_functions<dim,2*dim> soln_basis(1, poly_degree, grid_degree); 
     soln_basis.build_1D_volume_operator(dg.oneD_fe_collection_1state[poly_degree], quad_extra_1D);
 
     const unsigned int n_dofs = dg.fe_collection[poly_degree].n_dofs_per_cell();
@@ -425,8 +425,8 @@ void PeriodicTurbulence<dim, nstate>::update_maximum_local_wave_speed(DGBase<dim
     this->maximum_local_wave_speed = dealii::Utilities::MPI::max(this->maximum_local_wave_speed, this->mpi_communicator);
 }
 
-template <int dim, int nstate>
-double PeriodicTurbulence<dim,nstate>::compute_angular_momentum(const dealii::Point<dim> position, const dealii::Tensor<1,3,double> vorticity) const
+template <int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim,nspecies,nstate>::compute_angular_momentum(const dealii::Point<dim> position, const dealii::Tensor<1,3,double> vorticity) const
 {
     // Reference: Equation 13 in article H.J.H. Clercx, C.-H. Bruneau / Computers & Fluids 35 (2006) 245–279
     const double radius_squared = position.norm_square(); // radius squared (i.e. r^2)
@@ -435,8 +435,8 @@ double PeriodicTurbulence<dim,nstate>::compute_angular_momentum(const dealii::Po
     return angular_momentum;
 }
 
-template<int dim, int nstate>
-void PeriodicTurbulence<dim, nstate>::compute_and_update_integrated_quantities(DGBase<dim, double> &dg)
+template<int dim, int nspecies, int nstate>
+void PeriodicTurbulence<dim, nspecies, nstate>::compute_and_update_integrated_quantities(DGBase<dim, nspecies, double> &dg)
 {
     std::array<double,NUMBER_OF_INTEGRATED_QUANTITIES> integral_values;
     std::fill(integral_values.begin(), integral_values.end(), 0.0);
@@ -455,8 +455,8 @@ void PeriodicTurbulence<dim, nstate>::compute_and_update_integrated_quantities(D
     const unsigned int grid_degree = dg.high_order_grid->fe_system.tensor_degree();
     const unsigned int poly_degree = dg.max_degree;
     // Construct the basis functions and mapping shape functions.
-    OPERATOR::basis_functions<dim,2*dim,double> soln_basis(1, poly_degree, grid_degree); 
-    OPERATOR::mapping_shape_functions<dim,2*dim,double> mapping_basis(1, poly_degree, grid_degree);
+    OPERATOR::basis_functions<dim,2*dim> soln_basis(1, poly_degree, grid_degree); 
+    OPERATOR::mapping_shape_functions<dim,2*dim> mapping_basis(1, poly_degree, grid_degree);
     // Build basis function volume operator and gradient operator from 1D finite element for 1 state.
     soln_basis.build_1D_volume_operator(dg.oneD_fe_collection_1state[poly_degree], quad_extra_1D);
     soln_basis.build_1D_gradient_operator(dg.oneD_fe_collection_1state[poly_degree], quad_extra_1D);
@@ -464,7 +464,7 @@ void PeriodicTurbulence<dim, nstate>::compute_and_update_integrated_quantities(D
     mapping_basis.build_1D_shape_functions_at_grid_nodes(dg.high_order_grid->oneD_fe_system, dg.high_order_grid->oneD_grid_nodes);
     mapping_basis.build_1D_shape_functions_at_flux_nodes(dg.high_order_grid->oneD_fe_system, quad_extra_1D, dg.oneD_face_quadrature);
     // Construct and build projection operator
-    OPERATOR::vol_projection_operator<dim,2*dim,double> soln_basis_projection_oper(1, poly_degree, grid_degree);
+    OPERATOR::vol_projection_operator<dim,2*dim> soln_basis_projection_oper(1, poly_degree, grid_degree);
     soln_basis_projection_oper.build_1D_volume_operator(dg.oneD_fe_collection_1state[poly_degree], quad_extra_1D);
     const std::vector<double> &quad_weights = quad_extra.get_weights();
     // If in the future we need the physical quadrature node location, turn these flags to true and the constructor will
@@ -670,8 +670,8 @@ void PeriodicTurbulence<dim, nstate>::compute_and_update_integrated_quantities(D
     }
 }
 
-template<int dim, int nstate>
-double PeriodicTurbulence<dim, nstate>::get_integrated_kinetic_energy() const
+template<int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim, nspecies, nstate>::get_integrated_kinetic_energy() const
 {
     const double integrated_kinetic_energy = this->integrated_quantities[IntegratedQuantitiesEnum::kinetic_energy];
     // // Abort if energy is nan
@@ -683,38 +683,38 @@ double PeriodicTurbulence<dim, nstate>::get_integrated_kinetic_energy() const
     return integrated_kinetic_energy;
 }
 
-template<int dim, int nstate>
-double PeriodicTurbulence<dim, nstate>::get_integrated_enstrophy() const
+template<int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim, nspecies, nstate>::get_integrated_enstrophy() const
 {
     return this->integrated_quantities[IntegratedQuantitiesEnum::enstrophy];
 }
 
-template<int dim, int nstate>
-double PeriodicTurbulence<dim, nstate>::get_integrated_incompressible_kinetic_energy() const
+template<int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim, nspecies, nstate>::get_integrated_incompressible_kinetic_energy() const
 {
     return this->integrated_quantities[IntegratedQuantitiesEnum::incompressible_kinetic_energy];
 }
 
-template<int dim, int nstate>
-double PeriodicTurbulence<dim, nstate>::get_integrated_incompressible_enstrophy() const
+template<int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim, nspecies, nstate>::get_integrated_incompressible_enstrophy() const
 {
     return this->integrated_quantities[IntegratedQuantitiesEnum::incompressible_enstrophy];
 }
 
-template<int dim, int nstate>
-double PeriodicTurbulence<dim, nstate>::get_integrated_incompressible_palinstrophy() const
+template<int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim, nspecies, nstate>::get_integrated_incompressible_palinstrophy() const
 {
     return this->integrated_quantities[IntegratedQuantitiesEnum::incompressible_palinstrophy];
 }
 
-template<int dim, int nstate>
-double PeriodicTurbulence<dim, nstate>::get_integrated_angular_momentum() const
+template<int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim, nspecies, nstate>::get_integrated_angular_momentum() const
 {
     return this->integrated_quantities[IntegratedQuantitiesEnum::angular_momentum];
 }
 
-template<int dim, int nstate>
-double PeriodicTurbulence<dim, nstate>::get_vorticity_based_dissipation_rate() const
+template<int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim, nspecies, nstate>::get_vorticity_based_dissipation_rate() const
 {
     const double integrated_enstrophy = this->integrated_quantities[IntegratedQuantitiesEnum::enstrophy];
     double vorticity_based_dissipation_rate = 0.0;
@@ -724,15 +724,15 @@ double PeriodicTurbulence<dim, nstate>::get_vorticity_based_dissipation_rate() c
     return vorticity_based_dissipation_rate;
 }
 
-template<int dim, int nstate>
-double PeriodicTurbulence<dim, nstate>::get_pressure_dilatation_based_dissipation_rate() const
+template<int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim, nspecies, nstate>::get_pressure_dilatation_based_dissipation_rate() const
 {
     const double integrated_pressure_dilatation = this->integrated_quantities[IntegratedQuantitiesEnum::pressure_dilatation];
     return (-1.0*integrated_pressure_dilatation); // See reference (listed in header file), equation (57b)
 }
 
-template<int dim, int nstate>
-double PeriodicTurbulence<dim, nstate>::get_deviatoric_strain_rate_tensor_based_dissipation_rate() const
+template<int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim, nspecies, nstate>::get_deviatoric_strain_rate_tensor_based_dissipation_rate() const
 {
     const double integrated_viscosity_times_deviatoric_strain_rate_tensor_magnitude_sqr = this->integrated_quantities[IntegratedQuantitiesEnum::viscosity_times_deviatoric_strain_rate_tensor_magnitude_sqr];
     double deviatoric_strain_rate_tensor_based_dissipation_rate = 0.0;
@@ -743,8 +743,8 @@ double PeriodicTurbulence<dim, nstate>::get_deviatoric_strain_rate_tensor_based_
     return deviatoric_strain_rate_tensor_based_dissipation_rate;
 }
 
-template<int dim, int nstate>
-double PeriodicTurbulence<dim, nstate>::get_strain_rate_tensor_based_dissipation_rate() const
+template<int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim, nspecies, nstate>::get_strain_rate_tensor_based_dissipation_rate() const
 {
     const double integrated_viscosity_times_strain_rate_tensor_magnitude_sqr = this->integrated_quantities[IntegratedQuantitiesEnum::viscosity_times_strain_rate_tensor_magnitude_sqr];
     double strain_rate_tensor_based_dissipation_rate = 0.0;
@@ -755,15 +755,15 @@ double PeriodicTurbulence<dim, nstate>::get_strain_rate_tensor_based_dissipation
     return strain_rate_tensor_based_dissipation_rate;
 }
 
-template<int dim, int nstate>
-double PeriodicTurbulence<dim, nstate>::get_numerical_entropy(const std::shared_ptr <DGBase<dim, double>> /*dg*/) const
+template<int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim, nspecies, nstate>::get_numerical_entropy(const std::shared_ptr <DGBase<dim, nspecies, double>> /*dg*/) const
 {
     return this->cumulative_numerical_entropy_change_FRcorrected;
 }
 
-template<int dim, int nstate>
-double PeriodicTurbulence<dim, nstate>::compute_current_integrated_numerical_entropy(
-        const std::shared_ptr <DGBase<dim, double>> dg
+template<int dim, int nspecies, int nstate>
+double PeriodicTurbulence<dim, nspecies, nstate>::compute_current_integrated_numerical_entropy(
+        const std::shared_ptr <DGBase<dim, nspecies, double>> dg
         ) const
 {
     const double poly_degree = this->all_param.flow_solver_param.poly_degree;
@@ -772,14 +772,14 @@ double PeriodicTurbulence<dim, nstate>::compute_current_integrated_numerical_ent
     const unsigned int n_quad_pts = dg->volume_quadrature_collection[poly_degree].size();
     const unsigned int n_shape_fns = n_dofs_cell / nstate;
 
-    OPERATOR::vol_projection_operator<dim,2*dim,double> vol_projection(1, poly_degree, dg->max_grid_degree);
+    OPERATOR::vol_projection_operator<dim,2*dim> vol_projection(1, poly_degree, dg->max_grid_degree);
     vol_projection.build_1D_volume_operator(dg->oneD_fe_collection_1state[poly_degree], dg->oneD_quadrature_collection[poly_degree]);
 
     // Construct the basis functions and mapping shape functions.
-    OPERATOR::basis_functions<dim,2*dim,double> soln_basis(1, poly_degree, dg->max_grid_degree); 
+    OPERATOR::basis_functions<dim,2*dim> soln_basis(1, poly_degree, dg->max_grid_degree); 
     soln_basis.build_1D_volume_operator(dg->oneD_fe_collection_1state[poly_degree], dg->oneD_quadrature_collection[poly_degree]);
 
-    OPERATOR::mapping_shape_functions<dim,2*dim,double> mapping_basis(1, poly_degree, dg->max_grid_degree);
+    OPERATOR::mapping_shape_functions<dim,2*dim> mapping_basis(1, poly_degree, dg->max_grid_degree);
     mapping_basis.build_1D_shape_functions_at_grid_nodes(dg->high_order_grid->oneD_fe_system, dg->high_order_grid->oneD_grid_nodes);
     mapping_basis.build_1D_shape_functions_at_flux_nodes(dg->high_order_grid->oneD_fe_system, dg->oneD_quadrature_collection[poly_degree], dg->oneD_face_quadrature);
 
@@ -869,10 +869,10 @@ double PeriodicTurbulence<dim, nstate>::compute_current_integrated_numerical_ent
 }
 
 
-template <int dim, int nstate>
-void PeriodicTurbulence<dim, nstate>::output_velocity_field_if_current_time_is_output_time(
+template <int dim, int nspecies, int nstate>
+void PeriodicTurbulence<dim, nspecies, nstate>::output_velocity_field_if_current_time_is_output_time(
         const double current_time,
-        const std::shared_ptr <DGBase<dim, double>> dg)
+        const std::shared_ptr <DGBase<dim, nspecies, double>> dg)
 {
     // Output velocity field for spectra obtaining kinetic energy spectra
     if(output_velocity_field_at_fixed_times) {
@@ -899,11 +899,11 @@ void PeriodicTurbulence<dim, nstate>::output_velocity_field_if_current_time_is_o
     }
 }
 
-template <int dim, int nstate>
-void PeriodicTurbulence<dim, nstate>::update_numerical_entropy(
+template <int dim, int nspecies, int nstate>
+void PeriodicTurbulence<dim, nspecies, nstate>::update_numerical_entropy(
         const double FR_entropy_contribution_RRK_solver,
         const unsigned int current_iteration,
-        const std::shared_ptr <DGBase<dim, double>> dg)
+        const std::shared_ptr <DGBase<dim, nspecies, double>> dg)
 {
 
     const double current_numerical_entropy = this->compute_current_integrated_numerical_entropy(dg);
@@ -919,10 +919,10 @@ void PeriodicTurbulence<dim, nstate>::update_numerical_entropy(
 
 }
 
-template <int dim, int nstate>
-void PeriodicTurbulence<dim, nstate>::compute_unsteady_data_and_write_to_table(
-        const std::shared_ptr <ODE::ODESolverBase<dim, double>> ode_solver,
-        const std::shared_ptr <DGBase<dim, double>> dg,
+template <int dim, int nspecies, int nstate>
+void PeriodicTurbulence<dim, nspecies, nstate>::compute_unsteady_data_and_write_to_table(
+        const std::shared_ptr <ODE::ODESolverBase<dim, nspecies, double>> ode_solver,
+        const std::shared_ptr <DGBase<dim, nspecies, double>> dg,
         const std::shared_ptr <dealii::TableHandler> unsteady_data_table,
         const bool do_write_unsteady_data_table_file)
 {
@@ -1014,8 +1014,8 @@ void PeriodicTurbulence<dim, nstate>::compute_unsteady_data_and_write_to_table(
     output_velocity_field_if_current_time_is_output_time(current_time, dg);
 }
 
-#if PHILIP_DIM!=1
-template class PeriodicTurbulence <PHILIP_DIM,PHILIP_DIM+2>;
+#if PHILIP_DIM!=1 && PHILIP_SPECIES==1
+template class PeriodicTurbulence <PHILIP_DIM, PHILIP_SPECIES,PHILIP_DIM+2>;
 #endif
 
 } // FlowSolver namespace

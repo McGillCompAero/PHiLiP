@@ -5,16 +5,16 @@
 namespace PHiLiP {
 namespace ODE {
 
-template <int dim, typename real, typename MeshType>
-RootFindingRRKODESolver<dim,real,MeshType>::RootFindingRRKODESolver(
+template <int dim, int nspecies, typename real, typename MeshType>
+RootFindingRRKODESolver<dim,nspecies,real,MeshType>::RootFindingRRKODESolver(
             std::shared_ptr<RKTableauButcherBase<dim,real,MeshType>> rk_tableau_input)
-        : RRKODESolverBase<dim,real,MeshType>(rk_tableau_input)
+        : RRKODESolverBase<dim,nspecies,real,MeshType>(rk_tableau_input)
 {
 }
 
-template <int dim, typename real, typename MeshType>
-real RootFindingRRKODESolver<dim,real,MeshType>::compute_relaxation_parameter(const real dt,
-            std::shared_ptr<DGBase<dim,real,MeshType>> dg,
+template <int dim, int nspecies, typename real, typename MeshType>
+real RootFindingRRKODESolver<dim,nspecies,real,MeshType>::compute_relaxation_parameter(const real dt,
+            std::shared_ptr<DGBase<dim,nspecies,real,MeshType>> dg,
             const std::vector<dealii::LinearAlgebra::distributed::Vector<double>> &rk_stage,
             const dealii::LinearAlgebra::distributed::Vector<double> &solution_update
             ) 
@@ -179,14 +179,14 @@ real RootFindingRRKODESolver<dim,real,MeshType>::compute_relaxation_parameter(co
 }
 
 
-template <int dim, typename real, typename MeshType>
-real RootFindingRRKODESolver<dim,real,MeshType>::compute_root_function(
+template <int dim, int nspecies, typename real, typename MeshType>
+real RootFindingRRKODESolver<dim,nspecies,real,MeshType>::compute_root_function(
         const double gamma,
         const dealii::LinearAlgebra::distributed::Vector<double> &u_n,
         const dealii::LinearAlgebra::distributed::Vector<double> &step_direction,
         const double num_entropy_n,
         const double entropy_change_est,
-        std::shared_ptr<DGBase<dim,real,MeshType>> dg) const
+        std::shared_ptr<DGBase<dim,nspecies,real,MeshType>> dg) const
 {
     dealii::LinearAlgebra::distributed::Vector<double> temp = u_n;
     temp.add(gamma, step_direction);
@@ -195,10 +195,10 @@ real RootFindingRRKODESolver<dim,real,MeshType>::compute_root_function(
 }
 
 
-template <int dim, typename real, typename MeshType>
-real RootFindingRRKODESolver<dim,real,MeshType>::compute_numerical_entropy(
+template <int dim, int nspecies, typename real, typename MeshType>
+real RootFindingRRKODESolver<dim,nspecies,real,MeshType>::compute_numerical_entropy(
         const dealii::LinearAlgebra::distributed::Vector<double> &u,
-        std::shared_ptr<DGBase<dim,real,MeshType>> dg) const 
+        std::shared_ptr<DGBase<dim,nspecies,real,MeshType>> dg) const 
 {
     real num_entropy = compute_integrated_numerical_entropy(u,dg);
 
@@ -207,10 +207,10 @@ real RootFindingRRKODESolver<dim,real,MeshType>::compute_numerical_entropy(
 }
 
 
-template <int dim, typename real, typename MeshType>
-real RootFindingRRKODESolver<dim,real,MeshType>::compute_integrated_numerical_entropy(
+template <int dim, int nspecies, typename real, typename MeshType>
+real RootFindingRRKODESolver<dim,nspecies,real,MeshType>::compute_integrated_numerical_entropy(
         const dealii::LinearAlgebra::distributed::Vector<double> &u,
-        std::shared_ptr<DGBase<dim,real,MeshType>> dg) const
+        std::shared_ptr<DGBase<dim,nspecies,real,MeshType>> dg) const
 {
     // This function is reproduced from flow_solver_cases/periodic_turbulence
     // Check that poly_degree is uniform everywhere
@@ -227,8 +227,8 @@ real RootFindingRRKODESolver<dim,real,MeshType>::compute_integrated_numerical_en
         this->pcout << "ERROR: Only implemented for Euler or Navier-Stokes. Aborting..." << std::endl;
         std::abort();
     }
-    std::shared_ptr < Physics::Euler<dim, dim+2, double > > euler_physics = std::dynamic_pointer_cast<Physics::Euler<dim,dim+2,double>>(
-                Physics::PhysicsFactory<dim,dim+2,double>::create_Physics(&parameters_euler));
+    std::shared_ptr < Physics::Euler<dim, nspecies, dim+2, double > > euler_physics = std::dynamic_pointer_cast<Physics::Euler<dim,nspecies,dim+2,double>>(
+                Physics::PhysicsFactory<dim,nspecies,dim+2,double>::create_Physics(&parameters_euler));
     
     const int nstate = dim+2;
     double integrated_quantity = 0.0;
@@ -239,16 +239,16 @@ real RootFindingRRKODESolver<dim,real,MeshType>::compute_integrated_numerical_en
     const unsigned int n_quad_pts = dg->volume_quadrature_collection[poly_degree].size();
     const unsigned int n_shape_fns = n_dofs_cell / nstate;
 
-    OPERATOR::vol_projection_operator<dim,2*dim,double> vol_projection(1, poly_degree, dg->max_grid_degree);
+    OPERATOR::vol_projection_operator<dim,2*dim> vol_projection(1, poly_degree, dg->max_grid_degree);
     vol_projection.build_1D_volume_operator(dg->oneD_fe_collection_1state[poly_degree], 
                                             dg->oneD_quadrature_collection[poly_degree]);
 
     // Construct the basis functions and mapping shape functions.
-    OPERATOR::basis_functions<dim,2*dim,double> soln_basis(1, poly_degree, dg->max_grid_degree); 
+    OPERATOR::basis_functions<dim,2*dim> soln_basis(1, poly_degree, dg->max_grid_degree); 
     soln_basis.build_1D_volume_operator(dg->oneD_fe_collection_1state[poly_degree], 
                                         dg->oneD_quadrature_collection[poly_degree]);
 
-    OPERATOR::mapping_shape_functions<dim,2*dim,double> mapping_basis(1, poly_degree, dg->max_grid_degree);
+    OPERATOR::mapping_shape_functions<dim,2*dim> mapping_basis(1, poly_degree, dg->max_grid_degree);
     mapping_basis.build_1D_shape_functions_at_grid_nodes(dg->high_order_grid->oneD_fe_system, 
                                                          dg->high_order_grid->oneD_grid_nodes);
     mapping_basis.build_1D_shape_functions_at_flux_nodes(dg->high_order_grid->oneD_fe_system, 
@@ -351,9 +351,9 @@ real RootFindingRRKODESolver<dim,real,MeshType>::compute_integrated_numerical_en
     return integrated_quantity;
 }
 
-template <int dim, typename real, typename MeshType>
-real RootFindingRRKODESolver<dim,real,MeshType>::compute_entropy_change_estimate(const real dt,
-        std::shared_ptr<DGBase<dim,real,MeshType>> dg,
+template <int dim, int nspecies, typename real, typename MeshType>
+real RootFindingRRKODESolver<dim,nspecies,real,MeshType>::compute_entropy_change_estimate(const real dt,
+        std::shared_ptr<DGBase<dim,nspecies,real,MeshType>> dg,
         const std::vector<dealii::LinearAlgebra::distributed::Vector<double>> &rk_stage,
         const bool use_M_norm_for_entropy_change_est) const
 {
@@ -389,11 +389,12 @@ real RootFindingRRKODESolver<dim,real,MeshType>::compute_entropy_change_estimate
     return dt * entropy_change_estimate;
 }
 
-template class RootFindingRRKODESolver<PHILIP_DIM, double, dealii::Triangulation<PHILIP_DIM> >;
-template class RootFindingRRKODESolver<PHILIP_DIM, double, dealii::parallel::shared::Triangulation<PHILIP_DIM> >;
-#if PHILIP_DIM != 1
-    template class RootFindingRRKODESolver<PHILIP_DIM, double, dealii::parallel::distributed::Triangulation<PHILIP_DIM> >;
+#if PHILIP_SPECIES==1
+    template class RootFindingRRKODESolver<PHILIP_DIM, PHILIP_SPECIES, double, dealii::Triangulation<PHILIP_DIM> >;
+    template class RootFindingRRKODESolver<PHILIP_DIM, PHILIP_SPECIES, double, dealii::parallel::shared::Triangulation<PHILIP_DIM> >;
+    #if PHILIP_DIM != 1
+        template class RootFindingRRKODESolver<PHILIP_DIM, PHILIP_SPECIES, double, dealii::parallel::distributed::Triangulation<PHILIP_DIM> >;
+    #endif
 #endif
-
 } // ODESolver namespace
 } // PHiLiP namespace
