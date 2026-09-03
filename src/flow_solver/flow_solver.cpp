@@ -627,20 +627,20 @@ int FlowSolver<dim,nspecies, nstate>::run_unsteady() const
 #endif
 
 
-            // Compute time-averaged solution and Reynolds stresses for turbulent cases
-            if(flow_solver_param.do_compute_time_averaged_solution){
-                flow_solver_case->compute_time_averaged_solution(ode_solver, dg, time_step);
-                if(flow_solver_param.do_compute_Reynolds_stress){
-                    flow_solver_case->compute_Reynolds_stress(ode_solver, dg, time_step);
-                }
+        // Compute time-averaged solution and Reynolds stresses for turbulent cases
+        if(flow_solver_param.do_compute_time_averaged_solution){
+            flow_solver_case->compute_time_averaged_solution(ode_solver, dg, time_step);
+            if(flow_solver_param.do_compute_Reynolds_stress){
+                flow_solver_case->compute_Reynolds_stress(ode_solver, dg, time_step);
             }
-             // check if it's time to write solution output for postprocessing in ParaView
-            if (ode_param.output_solution_every_x_steps > 0) {
-                const bool is_output_iteration = (ode_solver->current_iteration % ode_param.output_solution_every_x_steps == 0);
-                if (is_output_iteration) {
-                    print_subtask("Writing VTK solution output.");
-                    const unsigned int file_number = ode_solver->current_iteration / ode_param.output_solution_every_x_steps;
-                    dg->output_results_vtk(file_number,ode_solver->current_time);
+        }
+            // check if it's time to write solution output for postprocessing in ParaView
+        if (ode_param.output_solution_every_x_steps > 0) {
+            const bool is_output_iteration = (ode_solver->current_iteration % ode_param.output_solution_every_x_steps == 0);
+            if (is_output_iteration) {
+                print_subtask("Writing VTK solution output.");
+                const unsigned int file_number = ode_solver->current_iteration / ode_param.output_solution_every_x_steps;
+                dg->output_results_vtk(file_number,ode_solver->current_time);
             }
         } else if(ode_param.output_solution_every_dt_time_intervals > 0.0) {
             const bool is_output_time = ((ode_solver->current_time <= ode_solver->current_desired_time_for_output_solution_every_dt_time_intervals) && 
@@ -674,24 +674,17 @@ int FlowSolver<dim,nspecies, nstate>::run_unsteady() const
                     index_of_current_desired_fixed_time_to_output_solution += 1;
                 }
             }
-            // Add snapshots to snapshot matrix
-            if(unsteady_FOM_POD_bool && nspecies==1){
-                const bool is_snapshot_iteration = (ode_solver->current_iteration % all_param.reduced_order_param.output_snapshot_every_x_timesteps == 0);
-                if(is_snapshot_iteration) time_pod->addSnapshot(dg->solution);
-            }
-        } // close while
-
-        // Print POD Snapshots to file
-        if(unsteady_FOM_POD_bool && nspecies==1){
-            std::ofstream snapshot_file("solution_snapshots_iteration_" + std::to_string(ode_solver->current_iteration) + ".txt"); // Change ode_solver->current_iteration to size of matrix
-            unsigned int precision = 16;
-            time_pod->dealiiSnapshotMatrix.print_formatted(snapshot_file, precision, true, 0, "0"); 
-            snapshot_file.close();
         }
-    } // close time advancement loop
+        // Add snapshots to snapshot matrix
+        if(unsteady_FOM_POD_bool && nspecies==1){
+            const bool is_snapshot_iteration = (ode_solver->current_iteration % all_param.reduced_order_param.output_snapshot_every_x_timesteps == 0);
+            if(is_snapshot_iteration) time_pod->addSnapshot(dg->solution);
+        }
+    } // close while
+
 
     // Print POD snapshots to file if time-dependent POD is being used 
-    if(unsteady_FOM_POD_bool){
+    if(unsteady_FOM_POD_bool && nspecies==1){
         print_task_header("Snapshot Output");
         print_subtask("Writing POD snapshots to file.");
         std::ofstream snapshot_file("solution_snapshots_iteration_" + std::to_string(ode_solver->current_iteration) + ".txt");
