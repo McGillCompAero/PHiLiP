@@ -970,7 +970,7 @@ foreach(dim RANGE 1 3)
         set_tests_labels(${TEST_TARGET} OPERATOR
                                     ${dim}D
                                     SERIAL
-                                    EXPECTED_FAILURE
+                                    KNOWN_FAILURE
                                     QUICK
                                     UNIT_TEST)
     else()

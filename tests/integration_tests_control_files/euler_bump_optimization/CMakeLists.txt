@@ -15,4 +15,5 @@ set_tests_labels(2D_EULER_BUMP_OPTIMIZATION EULER_BUMP_OPTIMIZATION
                                             UNCOLLOCATED
                                             EXTRA-LONG
                                             OPTIMIZATION
-                                            INTEGRATION_TEST)
+                                            INTEGRATION_TEST
+                                            KNOWN_FAILURE)

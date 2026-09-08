@@ -149,7 +149,8 @@ set_tests_labels(MPI_3D_TAYLOR_GREEN_SCALING_OVERINTEGRATION_CURV   TGV_SCALING
                                                                     CURVILINEAR
                                                                     MEMORY_INTENSIVE
                                                                     LONG
-                                                                    INTEGRATION_TEST)
+                                                                    INTEGRATION_TEST
+                                                                    KNOWN_FAILURE)
 
 set(TEST_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})                                                                     
 configure_file(3D_TGV_scaling_cons_curv.prm 3D_TGV_scaling_cons_curv.prm COPYONLY)                                                                                                                                            
@@ -214,7 +215,8 @@ set_tests_labels(MPI_3D_TAYLOR_GREEN_SCALING_OVERINTEGRATION_CHU_CURV   TGV_SCAL
                                                                         CURVILINEAR
                                                                         MEMORY_INTENSIVE
                                                                         LONG
-                                                                        INTEGRATION_TEST)
+                                                                        INTEGRATION_TEST
+                                                                        KNOWN_FAILURE)
 
 
 set(TEST_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})                                                                     

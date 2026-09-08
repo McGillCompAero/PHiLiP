@@ -22,7 +22,8 @@ set_tests_labels(MPI_VISCOUS_DIPOLE_WALL_COLLISION_QUANTITY_CHECK_STRONG_DG_P5 D
                                                                                STRONG
                                                                                UNCOLLOCATED
                                                                                EXTRA-LONG
-                                                                               INTEGRATION_TEST)
+                                                                               INTEGRATION_TEST
+                                                                               KNOWN_FAILURE)
 # ----------------------------------------
 configure_file(viscous_DWC_ILES_NSFR_cDG_IR_2PF_GL_OI-0_dofs0192_p2.prm viscous_DWC_ILES_NSFR_cDG_IR_2PF_GL_OI-0_dofs0192_p2.prm COPYONLY)
 add_test(
@@ -39,7 +40,8 @@ set_tests_labels(MPI_VISCOUS_DIPOLE_WALL_COLLISION_QUANTITY_CHECK_STRONG_DG_P2 D
                                                                                STRONG
                                                                                UNCOLLOCATED
                                                                                EXTRA-LONG
-                                                                               INTEGRATION_TEST)
+                                                                               INTEGRATION_TEST
+                                                                               KNOWN_FAILURE)
 # ----------------------------------------
 configure_file(viscous_DWC_ILES_NSFR_cHU_IR_2PF_GL_OI-0_dofs0384_p5_quick.prm viscous_DWC_ILES_NSFR_cHU_IR_2PF_GL_OI-0_dofs0384_p5_quick.prm COPYONLY)
 add_test(
@@ -55,6 +57,7 @@ set_tests_labels(MPI_VISCOUS_DIPOLE_WALL_COLLISION_QUANTITY_CHECK_STRONG_DG_P5_Q
                                                                                      STRONG
                                                                                      UNCOLLOCATED
                                                                                      QUICK
-                                                                                     INTEGRATION_TEST)
+                                                                                     INTEGRATION_TEST
+                                                                                     KNOWN_FAILURE)
 
 # ----------------------------------------

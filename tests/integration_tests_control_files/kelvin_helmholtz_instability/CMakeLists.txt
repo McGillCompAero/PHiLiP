@@ -20,5 +20,6 @@ set_tests_labels(MPI_2D_KELVIN_HELMHOLTZ_INSTABILITY    KELVIN_HELMHOLTZ_INSTABI
                                                         STRONG-SPLIT
                                                         UNCOLLOCATED
                                                         MODERATE
-                                                        INTEGRATION_TEST)
+                                                        INTEGRATION_TEST
+                                                        KNOWN_FAILURE)
 # ----------------------------------------

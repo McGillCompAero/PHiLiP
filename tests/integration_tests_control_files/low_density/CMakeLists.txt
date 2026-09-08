@@ -20,7 +20,8 @@ set(TEST_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
                                                         LIMITER
                                                         MODERATE
                                                         CONVERGENCE
-                                                        INTEGRATION_TEST)
+                                                        INTEGRATION_TEST
+                                                        KNOWN_FAILURE)
 
 #configure_file(2D_low_density.prm 2D_low_density.prm COPYONLY)
 #add_test(
