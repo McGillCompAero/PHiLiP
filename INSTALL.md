@@ -170,10 +170,9 @@ However, you can manually launch this program through the command line and chang
 Running ctest might take a while so, you may want to [request a computational node](https://docs.computecanada.ca/wiki/Running_jobs) before running.
 Note that you want to request at least as many processes as MPIMAX.
 ~~~~
-ctest -LE EXTRA-LONG
+ctest -LE 'EXTRA-LONG|KNOWN_FAILURE'
 ~~~~
-The  `-LE EXTRA-LONG` flag will disable all tests that will take over an hour and should only be removed when wanting to
-run tests that will take over an hour. All tests also have labels and can be used with the `-L` flag. For example,
+The  `-LE 'EXTRA-LONG|KNOWN_FAILURE'` flag will disable all tests that will take over an hour and all tests that are expected to fail (ie. have an issue open on GitHub). This flag should only be removed when wanting to run tests that will take over an hour or when testing fixes for known issues. All tests also have labels and can be used with the `-L` flag. For example,
 if you want to run all `EULER` dg tests use the following.
 ~~~~
 ctest -L EULER
