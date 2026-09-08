@@ -399,11 +399,6 @@ void AllParameters::declare_parameters (dealii::ParameterHandler &prm)
                       dealii::Patterns::Bool(),
                       "Flag for using second element as wall model input. If false, uses buffer (i.e. wall-adjacent) element.");
 
-    prm.declare_entry("use_projected_entropy_variables_for_nsfr_boundary_term", "false",
-                      dealii::Patterns::Bool(),
-                      "Flag for using projected entropy variables for NSFR boundary term. "
-                      "Default is false since boundary condition was verified using conservative solution.");
-
     Parameters::LinearSolverParam::declare_parameters (prm);
     Parameters::ManufacturedConvergenceStudyParam::declare_parameters (prm);
     Parameters::ODESolverParam::declare_parameters (prm);
@@ -668,7 +663,6 @@ const std::string test_string = prm.get("test_type");
 
     matching_surface_jac_det_tolerance = prm.get_double("matching_surface_jac_det_tolerance");
     wall_model_input_from_second_element = prm.get_bool("wall_model_input_from_second_element");
-    use_projected_entropy_variables_for_nsfr_boundary_term = prm.get_bool("use_projected_entropy_variables_for_nsfr_boundary_term");
 
     chemistry_input_file = prm.get("chemistry_input_file");
 

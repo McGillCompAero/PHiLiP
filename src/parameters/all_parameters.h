@@ -337,9 +337,6 @@ public:
 
     /// Flag for using second element as wall model input; if false, uses buffer (i.e. wall-adjacent) element
     bool wall_model_input_from_second_element;
-
-    /// Flag for using projected entropy variables for NSFR boundary term
-    bool use_projected_entropy_variables_for_nsfr_boundary_term;
     
     /// Declare parameters that can be set as inputs and set up the default options
     /** This subroutine should call the sub-parameter classes static declare_parameters()
