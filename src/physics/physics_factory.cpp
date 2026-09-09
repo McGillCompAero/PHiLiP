@@ -124,6 +124,10 @@ PhysicsFactory<dim,nspecies,nstate,real>
                     diffusion_tensor, 
                     manufactured_solution_function);
         } else if (pde_type == PDE_enum::navier_stokes) {
+            if (parameters_input->navier_stokes_param.reynolds_number_inf == 0) {     // 0 is the default Reynold's number
+                     std::cout << "Error! No Reynolds number was provided." << std::endl;
+                     std::abort();
+                }
             if constexpr (nstate==dim+2) {
                 return std::make_shared < NavierStokes<dim,nspecies,nstate,real> > (
                     parameters_input,

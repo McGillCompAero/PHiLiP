@@ -137,6 +137,8 @@ int main (int argc, char * argv[])
     //all_parameters.ode_solver_param.output_solution_every_x_steps = 1;
     all_parameters.ode_solver_param.time_step_factor_residual_exp = 4.0;
     all_parameters.ode_solver_param.nonlinear_max_iterations = 2;
+    //set arbitrary reynolds number since PDE Type is navier_stokes
+    all_parameters.navier_stokes_param.reynolds_number_inf = 10000000;  
     //all_parameters.linear_solver_param.linear_solver_type = PHiLiP::Parameters::LinearSolverParam::LinearSolverEnum::direct;
     std::vector<PDEType> pde_type {
          //  PDEType::diffusion

@@ -360,6 +360,7 @@ int main (int argc, char * argv[])
 
     Parameters::AllParameters all_parameters;
     all_parameters.parse_parameters (parameter_handler);
+    all_parameters.navier_stokes_param.reynolds_number_inf = 10000000;  //set to arbitrary value
     std::vector<PDEType> pde_type {
            PDEType::diffusion
          , PDEType::advection
