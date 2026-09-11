@@ -542,6 +542,22 @@ int FlowSolver<dim,nspecies,nstate>::run() const
                 pcout << "done." << std::endl;
             }
         }
+
+        // If using AD version of DIRK, the residual needs to be assembled such that the Jacobian is known.
+        using DIRKSolverEnum = Parameters::ODESolverParam::DIRKSolverEnum;
+        if (ode_param.solver_type_for_diagonally_implicit_RK == DIRKSolverEnum::AD){
+            this->dg->assemble_residual(true);
+            double diagonal_entry = 0;
+            // Diagonal entry is copied from runge_kutta_methods.cpp (avoids painful typecasting)
+            if (ode_param.runge_kutta_method == Parameters::ODESolverParam::RKMethodEnum::dirk_2_im)
+                diagonal_entry = 1.0 - sqrt(2.0)/2.0;
+            else if (ode_param.runge_kutta_method == Parameters::ODESolverParam::RKMethodEnum::dirk_3_im)
+                diagonal_entry = 0.43586652150845899941601945;
+
+            this->dg->system_matrix *= -time_step*diagonal_entry;
+            this->dg->add_mass_matrices(1.0);
+        }
+
         //----------------------------------------------------
         // Time advancement loop with on-the-fly post-processing
         //----------------------------------------------------

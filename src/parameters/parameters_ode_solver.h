@@ -50,6 +50,12 @@ public:
     double time_step_factor_residual; ///< Multiplies initial time-step by time_step_factor_residual*(-log10(residual_norm_decrease))
     double time_step_factor_residual_exp; ///< Scales initial time step by pow(time_step_factor_residual*(-log10(residual_norm_decrease)),time_step_factor_residual_exp)
 
+    enum DIRKSolverEnum {
+        JFNK,
+        AD
+    };
+    DIRKSolverEnum solver_type_for_diagonally_implicit_RK; ///< Type of solver to use for diagonally-implicit Runge-Kutta
+
     /** Set as false by default. 
       * If true, writes the linear solver convergence data for
       *  steady state to a file named "ode_solver_steady_state_convergence_data_table.txt"

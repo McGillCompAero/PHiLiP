@@ -1,10 +1,12 @@
 #include "runge_kutta_ode_solver.h"
+#include "linear_solver/linear_solver.h"
+#include "parameters/parameters_ode_solver.h"
 
 namespace PHiLiP {
 namespace ODE {
 
-template <int dim, int nspecies, typename real, int n_rk_stages, typename MeshType> 
-RungeKuttaODESolver<dim,nspecies,real,n_rk_stages, MeshType>::RungeKuttaODESolver(std::shared_ptr< DGBase<dim, nspecies, real, MeshType> > dg_input,
+template<int dim, int nspecies, typename real, int n_rk_stages, typename MeshType> 
+RungeKuttaODESolver<dim, nspecies, real,n_rk_stages, MeshType>::RungeKuttaODESolver(std::shared_ptr< DGBase<dim, nspecies, real, MeshType> > dg_input,
         std::shared_ptr<RKTableauButcherBase<dim,real,MeshType>> rk_tableau_input,
         std::shared_ptr<EmptyRRKBase<dim,nspecies,real,MeshType>> RRK_object_input)
         : RungeKuttaBase<dim,nspecies,real,n_rk_stages,MeshType>(dg_input, RRK_object_input)
@@ -22,7 +24,6 @@ void RungeKuttaODESolver<dim,nspecies,real,n_rk_stages,MeshType>::calculate_stag
         }
     } //sum(a_ij *k_j), explicit part
 
-    
     if(pseudotime) {
         const double CFL = dt;
         this->dg->time_scale_solution_update(this->rk_stage[istage], CFL);
@@ -52,18 +53,74 @@ void RungeKuttaODESolver<dim,nspecies,real,n_rk_stages,MeshType>::calculate_stag
 
         this->rk_stage[istage].add(1.0, temp_u);
         */
+        using DIRKSolverEnum = Parameters::ODESolverParam::DIRKSolverEnum;
+        if (this->ode_param.solver_type_for_diagonally_implicit_RK == DIRKSolverEnum::AD){
+            dealii::LinearAlgebra::distributed::Vector<double> delY(this->dg->solution);
+            dealii::LinearAlgebra::distributed::Vector<double> Y_guess(this->dg->solution);
+            dealii::LinearAlgebra::distributed::Vector<double> rhs(this->dg->solution);
+            Y_guess = this->rk_stage[istage];
+            delY = Y_guess;
+            rhs = Y_guess;
+            int n_newton_iterations = 0;
+            if (istage==0)
+                n_newton_iterations = 5; // assemble residual at beginning of step
+            const double scale = 1E-3;
+            bool linsolve_failed = false;
+            while( rhs.linfty_norm() > scale*(this->rk_stage[istage].linfty_norm()+scale) )
+            {
+                this->dg->solution = Y_guess;
+                if(n_newton_iterations > 4)
+                {
+                    std::cout << "HERE" << std::endl;
+                    this->dg->assemble_residual(true);
+                    this->dg->system_matrix *= -dt*butcher_tableau->get_a(istage,istage);
+                    this->dg->add_mass_matrices(1.0);
 
-        //JFNK version
-        this->solver.solve(dt*this->butcher_tableau->get_a(istage,istage), this->rk_stage[istage]);
-        this->rk_stage[istage] = this->solver.current_solution_estimate;
+                    n_newton_iterations = 0;
+                }
 
+                this->dg->assemble_residual();
+                rhs = this->dg->right_hand_side;
+                rhs *= dt*butcher_tableau->get_a(istage,istage);
+                delY = this->rk_stage[istage];
+                delY -= Y_guess;
+                this->dg->global_mass_matrix.vmult_add(rhs,delY);
+                solve_linear(this->dg->system_matrix,rhs,delY,this->ODESolverBase<dim,nspecies,real,MeshType>::all_parameters->linear_solver_param);
+                if(std::isnan(delY.linfty_norm()) || delY.linfty_norm() == 0) 
+                {
+                    //rhs.print(std::cout);
+                    this->pcout << "rhs l inf norm: " << rhs.linfty_norm() << std::endl;
+                    if (!linsolve_failed){
+                        this->pcout << " ERROR: Linear solver failed. Trying again with a fresh Jacobian." << std::endl;
+                        n_newton_iterations = 100; // to trigger assemble_residual(true) and update system matrix
+                        Y_guess = this->rk_stage[istage]; // resetting solution
+                        linsolve_failed = true;
+                    } else{
+                        this->pcout << " ERROR: Linear solver failed. Aborting..." << std::endl;
+                        std::abort();
+                    }
+                }
+                Y_guess += delY;
+
+                n_newton_iterations++;
+            }
+            this->rk_stage[istage] = Y_guess;
+            this->pcout << "Implicit solve converged!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+        } else if (this->ode_param.solver_type_for_diagonally_implicit_RK == DIRKSolverEnum::JFNK) {
+
+            //JFNK version
+            this->solver.solve(dt*this->butcher_tableau->get_a(istage,istage), this->rk_stage[istage]);
+            this->rk_stage[istage] = this->solver.current_solution_estimate;
+        }
     } // u_n + dt * sum(a_ij * k_j) <explicit> + dt * a_ii * u^(istage) <implicit>
+    soln_stored[istage] = this->rk_stage[istage];
     
     // If using the entropy formulation of RRK, solutions must be stored.
     // Call store_stage_solutions before overwriting rk_stage with the derivative.
     this->relaxation_runge_kutta->store_stage_solutions(istage, this->rk_stage[istage]);
 
     this->dg->solution = this->rk_stage[istage];
+    std::cout << "#################Done step " << this->current_time << std::endl;
 
 }
 
@@ -109,9 +166,10 @@ real RungeKuttaODESolver<dim,nspecies,real,n_rk_stages,MeshType>::adjust_time_st
     return dt;
 }
 
-template <int dim, int nspecies, typename real, int n_rk_stages, typename MeshType> 
+template<int dim, int nspecies, typename real, int n_rk_stages, typename MeshType> 
 void RungeKuttaODESolver<dim,nspecies,real,n_rk_stages,MeshType>::allocate_runge_kutta_system ()
 {
+
     this->butcher_tableau->set_tableau();
     
     this->butcher_tableau_aii_is_zero.resize(n_rk_stages);
@@ -123,16 +181,15 @@ void RungeKuttaODESolver<dim,nspecies,real,n_rk_stages,MeshType>::allocate_runge
     
     }
     if(this->all_parameters->use_inverse_mass_on_the_fly == false) {
-        this->pcout << " evaluating inverse mass matrix..." << std::flush;
+        this->pcout << " evaluating mass and inverse mass matrix..." << std::flush;
         this->dg->evaluate_mass_matrices(true); // creates and stores global inverse mass matrix
+        this->dg->evaluate_mass_matrices(false); // creates and stores global mass matrix
         //RRK needs both mass matrix and inverse mass matrix
         if (this->ode_param.use_relaxation_runge_kutta) {
             this->dg->evaluate_mass_matrices(false); // creates and stores global mass matrix
         }
     }
 }
-
-
 // Define a sequence of indices representing the range of nstates
 #define POSSIBLE_NSTATE (1)(2)(3)(4)
 

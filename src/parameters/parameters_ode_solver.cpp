@@ -80,6 +80,17 @@ void ODESolverParam::declare_parameters (dealii::ParameterHandler &prm)
                           dealii::Patterns::Double(0,dealii::Patterns::Double::max_double_value),
                           "Scales initial time step by pow(time_step_factor_residual*(-log10(residual_norm_decrease)),time_step_factor_residual_exp).");
 
+        prm.declare_entry("solver_type_for_diagonally_implicit_RK", "JFNK",
+                          dealii::Patterns::Selection(
+                          " JFNK | "
+                          " AD " ),
+                          "Type of solver to use for diagonally-implicit Runge-Kutta."
+                          "Choices are "
+                          " <JFNK | "
+                          " solve_linear >."
+                          " JFNK uses Jacobian-free Newton-Krylov,"
+                          " while AD uses the exact Jacobian using AD.");
+
         prm.declare_entry("print_iteration_modulo", "1",
                           dealii::Patterns::Integer(0,dealii::Patterns::Integer::max_int_value),
                           "Print every print_iteration_modulo iterations of "
@@ -221,6 +232,11 @@ void ODESolverParam::parse_parameters (dealii::ParameterHandler &prm)
         initial_time_step  = prm.get_double("initial_time_step");
         time_step_factor_residual = prm.get_double("time_step_factor_residual");
         time_step_factor_residual_exp = prm.get_double("time_step_factor_residual_exp");
+
+        const std::string solver_type_for_diagonally_implicit_RK_string = prm.get("solver_type_for_diagonally_implicit_RK");
+        if (solver_type_for_diagonally_implicit_RK_string == "JFNK")    { solver_type_for_diagonally_implicit_RK = DIRKSolverEnum::JFNK; }
+        if (solver_type_for_diagonally_implicit_RK_string == "AD")      { solver_type_for_diagonally_implicit_RK = DIRKSolverEnum::AD; 
+                                                                          allocate_matrix_dRdW = true;}
 
         print_iteration_modulo = prm.get_integer("print_iteration_modulo");
         output_final_steady_state_solution_to_file = prm.get_bool("output_final_steady_state_solution_to_file");

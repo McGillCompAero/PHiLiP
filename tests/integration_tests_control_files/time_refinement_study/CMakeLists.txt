@@ -36,14 +36,43 @@ set_tests_labels(1D_TIME_REFINEMENT_STUDY_ADVECTION_EXPLICIT    TIME_REFINEMENT_
 # Time refinement study on linear advection using a sinusoidal initial condition
 # L2 error calculated with respect to the exact solution
 # Test will fail if the convergence order is not close to the expected order
+# Uses JFNK solver
 # ----------------------------------------
 configure_file(time_refinement_study_advection_implicit.prm time_refinement_study_advection_implicit.prm COPYONLY)
 add_test(
-    NAME 1D_TIME_REFINEMENT_STUDY_ADVECTION_IMPLICIT
+    NAME 1D_TIME_REFINEMENT_STUDY_ADVECTION_IMPLICIT_JFNK
     COMMAND mpirun -np 1 ${EXECUTABLE_OUTPUT_PATH}/PHiLiP_1D -i ${CMAKE_CURRENT_BINARY_DIR}/time_refinement_study_advection_implicit.prm
     WORKING_DIRECTORY ${TEST_OUTPUT_DIR}
 )
-set_tests_labels(1D_TIME_REFINEMENT_STUDY_ADVECTION_IMPLICIT    TIME_REFINEMENT_STUDY
+set_tests_labels(1D_TIME_REFINEMENT_STUDY_ADVECTION_IMPLICIT_JFNK    TIME_REFINEMENT_STUDY
+                                                                     1D
+                                                                     REFINEMENT_STUDY
+                                                                     SERIAL
+                                                                     ADVECTION
+                                                                     RUNGE-KUTTA
+                                                                     WEAK
+                                                                     UNCOLLOCATED
+                                                                     MANUFACTURED_SOLUTION
+                                                                     CONVERGENCE
+                                                                     MODERATE
+                                                                     INTEGRATION_TEST)
+# ----------------------------------------
+# =======================================
+# Time Study (Linear Advection Implicit RK)
+# =======================================
+# ----------------------------------------
+# Time refinement study on linear advection using a sinusoidal initial condition
+# L2 error calculated with respect to the exact solution
+# Test will fail if the convergence order is not close to the expected order
+# Uses AD to find the exact Jacobian
+# ----------------------------------------
+configure_file(time_refinement_study_advection_implicit_AD.prm time_refinement_study_advection_implicit_AD.prm COPYONLY)
+add_test(
+    NAME 1D_TIME_REFINEMENT_STUDY_ADVECTION_IMPLICIT_AD
+    COMMAND mpirun -np 1 ${EXECUTABLE_OUTPUT_PATH}/PHiLiP_1D -i ${CMAKE_CURRENT_BINARY_DIR}/time_refinement_study_advection_implicit_AD.prm
+    WORKING_DIRECTORY ${TEST_OUTPUT_DIR}
+)
+set_tests_labels(1D_TIME_REFINEMENT_STUDY_ADVECTION_IMPLICIT_AD TIME_REFINEMENT_STUDY
                                                                 1D
                                                                 REFINEMENT_STUDY
                                                                 SERIAL

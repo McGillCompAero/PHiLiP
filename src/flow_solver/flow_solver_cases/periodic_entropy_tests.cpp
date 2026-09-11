@@ -34,6 +34,8 @@ double PeriodicEntropyTests<dim,nspecies,nstate>::get_constant_time_step(std::sh
         // Using dt = CFL * delta_x/U_infinity, consistent with Ranocha's choice (Relaxation Runge Kutta methods... 2020)
         // U_infinity is initialized as M_infinity
         constant_time_step = CFL * approximate_grid_spacing / this->all_param.euler_param.mach_inf;
+        if (CFL==0)
+            constant_time_step = this->all_param.flow_solver_param.constant_time_step;
     } else if (flow_case == FlowCaseEnum::kelvin_helmholtz_instability){
         /*
         const double max_wave_speed = this->compute_integrated_quantities(*dg, IntegratedQuantityEnum::max_wave_speed);

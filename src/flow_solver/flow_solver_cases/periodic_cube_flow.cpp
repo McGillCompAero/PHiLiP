@@ -25,7 +25,7 @@ template <int dim, int nspecies, int nstate>
 std::shared_ptr<Triangulation> PeriodicCubeFlow<dim,nspecies,nstate>::generate_grid() const
 {
     if(this->all_param.flow_solver_param.use_gmsh_mesh) {
-        if constexpr(dim == 3) {
+        if constexpr(dim == 3 || dim == 2) {
             const std::string mesh_filename = this->all_param.flow_solver_param.input_mesh_filename + std::string(".msh");
             this->pcout << "- Generating grid using input mesh: " << mesh_filename << std::endl;
             

@@ -2622,7 +2622,7 @@ void DGBase<dim,nspecies,real,MeshType>::assemble_residual (const bool compute_d
             if (l2_norm_node == 0.0) {
                 if (CFL_mass_dRdW == CFL_mass) {
                     pcout << " which is already assembled..." << std::endl;
-                    return;
+                    //return;
                 }
             }
         }
@@ -3760,8 +3760,8 @@ void DGBase<dim,nspecies,real,MeshType>::evaluate_mass_matrices (bool do_inverse
     OPERATOR::local_Flux_Reconstruction_operator_aux<dim,2*dim> reference_FR_aux(1, max_degree, init_grid_degree, FR_Type_Aux);
     OPERATOR::derivative_p<dim,2*dim> deriv_p(1, max_degree, init_grid_degree);
 
-    auto first_cell = dof_handler.begin_active();
-    const bool Cartesian_first_element = (first_cell->manifold_id() == dealii::numbers::flat_manifold_id);
+    //auto first_cell = dof_handler.begin_active();
+    const bool Cartesian_first_element = false; //(first_cell->manifold_id() == dealii::numbers::flat_manifold_id);
 
     reinit_operators_for_mass_matrix(Cartesian_first_element, max_degree, init_grid_degree, mapping_basis, basis, reference_mass_matrix, reference_FR, reference_FR_aux, deriv_p);
 
@@ -3771,7 +3771,7 @@ void DGBase<dim,nspecies,real,MeshType>::evaluate_mass_matrices (bool do_inverse
 
         if (!cell->is_locally_owned()) continue;
 
-        const bool Cartesian_element = (cell->manifold_id() == dealii::numbers::flat_manifold_id);
+        const bool Cartesian_element = false;//(cell->manifold_id() == dealii::numbers::flat_manifold_id);
 
         const unsigned int fe_index_curr_cell = cell->active_fe_index();
         const unsigned int curr_grid_degree   = high_order_grid->fe_system.tensor_degree();//in the future the metric cell's should store a local grid degree. currently high_order_grid dof_handler_grid doesn't have that capability
