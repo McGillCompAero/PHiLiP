@@ -1428,29 +1428,32 @@ void DGStrong<dim,nspecies,nstate,real,MeshType>::assemble_volume_term_strong(
         }
 
     }
-    
-    std::vector<adtype> viscous_rhs_vol;
-    assemble_volume_term_viscous_primal(
-    current_cell_index,
-    soln_at_q,
-    aux_soln_at_q,
-    legendre_soln_at_q,
-    legendre_aux_soln_at_q,
-    poly_degree,
-    soln_basis,
-    flux_basis,
-    metric_oper,
-    entropy_var_coeffs,
-    projected_entropy_var_at_q,
-    n_quad_pts,
-    n_dofs_cell,
-    n_shape_fns,
-    pde_physics,
-    viscous_rhs_vol);
+   
+   if(pde_physics.has_nonzero_diffusion)
+   {
+        std::vector<adtype> viscous_rhs_vol;
+        assemble_volume_term_viscous_primal(
+        current_cell_index,
+        soln_at_q,
+        aux_soln_at_q,
+        legendre_soln_at_q,
+        legendre_aux_soln_at_q,
+        poly_degree,
+        soln_basis,
+        flux_basis,
+        metric_oper,
+        entropy_var_coeffs,
+        projected_entropy_var_at_q,
+        n_quad_pts,
+        n_dofs_cell,
+        n_shape_fns,
+        pde_physics,
+        viscous_rhs_vol);
 
-    for(unsigned int idof = 0; idof<n_dofs_cell; ++idof)
-    {
-        local_rhs_int_cell[idof] += viscous_rhs_vol[idof];
+        for(unsigned int idof = 0; idof<n_dofs_cell; ++idof)
+        {
+            local_rhs_int_cell[idof] += viscous_rhs_vol[idof];
+        }
     }
 }
     
@@ -2280,42 +2283,45 @@ void DGStrong<dim,nspecies,nstate,real,MeshType>::assemble_boundary_term_strong(
             local_rhs_cell[istate*n_shape_fns + ishape] += rhs[ishape];
         }
     }
-    
-    std::vector<adtype> boundary_term_viscous;
-    assemble_boundary_term_viscous_primal(
-        current_cell_index,
-        face_orientation,
-        iface,
-        boundary_id,
-        poly_degree,
-        penalty,
-        entropy_var_coeffs,
-        projected_entropy_var_vol,
-        projected_entropy_var_surf,
-        soln_at_vol_q,
-        aux_soln_at_vol_q,
-        soln_at_surf_q,
-        aux_soln_at_surf_q,
-        soln_at_opposite_surf_q,
-        legendre_soln_at_vol_q,
-        legendre_aux_soln_at_vol_q,
-        legendre_soln_at_surf_q,
-        legendre_aux_soln_at_surf_q,
-        n_quad_pts_vol,  
-        n_face_quad_pts,  
-        n_dofs, 
-        soln_basis,
-        flux_basis,
-        metric_oper,
-        unit_phys_normals,
-        JxW_face,
-        pde_physics,
-        diss_num_flux,
-        boundary_term_viscous);
-
-    for(unsigned int idof=0; idof<n_dofs; ++idof)
+   
+    if(pde_physics.has_nonzero_diffusion)
     {
-        local_rhs_cell[idof]+= boundary_term_viscous[idof];
+        std::vector<adtype> boundary_term_viscous;
+        assemble_boundary_term_viscous_primal(
+            current_cell_index,
+            face_orientation,
+            iface,
+            boundary_id,
+            poly_degree,
+            penalty,
+            entropy_var_coeffs,
+            projected_entropy_var_vol,
+            projected_entropy_var_surf,
+            soln_at_vol_q,
+            aux_soln_at_vol_q,
+            soln_at_surf_q,
+            aux_soln_at_surf_q,
+            soln_at_opposite_surf_q,
+            legendre_soln_at_vol_q,
+            legendre_aux_soln_at_vol_q,
+            legendre_soln_at_surf_q,
+            legendre_aux_soln_at_surf_q,
+            n_quad_pts_vol,  
+            n_face_quad_pts,  
+            n_dofs, 
+            soln_basis,
+            flux_basis,
+            metric_oper,
+            unit_phys_normals,
+            JxW_face,
+            pde_physics,
+            diss_num_flux,
+            boundary_term_viscous);
+
+        for(unsigned int idof=0; idof<n_dofs; ++idof)
+        {
+            local_rhs_cell[idof]+= boundary_term_viscous[idof];
+        }
     }
 }
 
@@ -3579,68 +3585,70 @@ void DGStrong<dim,nspecies,nstate,real,MeshType>::assemble_face_term_strong(
             local_rhs_ext_cell[istate*n_shape_fns_ext + ishape] += rhs_ext[ishape];
         }
     }
-
-    std::vector<adtype> viscous_face_term_int;
-    std::vector<adtype> viscous_face_term_ext;
-    assemble_face_term_viscous_primal(
-        current_cell_index,
-        neighbor_cell_index,
-        face_orientation_int,
-        face_orientation_ext,
-        iface,
-        neighbor_iface,
-        penalty,
-        entropy_var_coeffs_int,
-        entropy_var_coeffs_ext,
-        projected_entropy_var_vol_int,
-        projected_entropy_var_vol_ext,
-        projected_entropy_var_surf_int_corrected,
-        projected_entropy_var_surf_ext_corrected,
-        soln_at_vol_q_int,
-        soln_at_vol_q_ext,
-        aux_soln_at_vol_q_int,
-        aux_soln_at_vol_q_ext,
-        soln_at_surf_q_int,
-        soln_at_surf_q_ext,
-        aux_soln_at_surf_q_int,
-        aux_soln_at_surf_q_ext,
-        legendre_soln_at_vol_q_int,
-        legendre_aux_soln_at_vol_q_int,
-        legendre_soln_at_vol_q_ext,
-        legendre_aux_soln_at_vol_q_ext, 
-        legendre_soln_at_surf_q_int,
-        legendre_aux_soln_at_surf_q_int,
-        legendre_soln_at_surf_q_ext,
-        legendre_aux_soln_at_surf_q_ext,
-        unit_phys_normals_int,
-        JxW_face,
-        poly_degree_int,
-        poly_degree_ext,
-        n_quad_pts_vol_int,
-        n_quad_pts_vol_ext,
-        n_dofs_int,
-        n_dofs_ext,
-        n_face_quad_pts,
-        n_shape_fns_int,
-        n_shape_fns_ext,
-        soln_basis_int,
-        soln_basis_ext,
-        flux_basis_int,
-        flux_basis_ext,
-        metric_oper_int,
-        metric_oper_ext,
-        pde_physics,
-        diss_num_flux,
-        viscous_face_term_int,
-        viscous_face_term_ext);
-
-    for(unsigned int idof=0; idof<n_dofs_int; ++idof)
+    if(pde_physics.has_nonzero_diffusion)
     {
-        local_rhs_int_cell[idof] += viscous_face_term_int[idof];
-    }
-    for(unsigned int idof=0; idof<n_dofs_ext; ++idof)
-    {
-        local_rhs_ext_cell[idof] += viscous_face_term_ext[idof];
+        std::vector<adtype> viscous_face_term_int;
+        std::vector<adtype> viscous_face_term_ext;
+        assemble_face_term_viscous_primal(
+            current_cell_index,
+            neighbor_cell_index,
+            face_orientation_int,
+            face_orientation_ext,
+            iface,
+            neighbor_iface,
+            penalty,
+            entropy_var_coeffs_int,
+            entropy_var_coeffs_ext,
+            projected_entropy_var_vol_int,
+            projected_entropy_var_vol_ext,
+            projected_entropy_var_surf_int_corrected,
+            projected_entropy_var_surf_ext_corrected,
+            soln_at_vol_q_int,
+            soln_at_vol_q_ext,
+            aux_soln_at_vol_q_int,
+            aux_soln_at_vol_q_ext,
+            soln_at_surf_q_int,
+            soln_at_surf_q_ext,
+            aux_soln_at_surf_q_int,
+            aux_soln_at_surf_q_ext,
+            legendre_soln_at_vol_q_int,
+            legendre_aux_soln_at_vol_q_int,
+            legendre_soln_at_vol_q_ext,
+            legendre_aux_soln_at_vol_q_ext, 
+            legendre_soln_at_surf_q_int,
+            legendre_aux_soln_at_surf_q_int,
+            legendre_soln_at_surf_q_ext,
+            legendre_aux_soln_at_surf_q_ext,
+            unit_phys_normals_int,
+            JxW_face,
+            poly_degree_int,
+            poly_degree_ext,
+            n_quad_pts_vol_int,
+            n_quad_pts_vol_ext,
+            n_dofs_int,
+            n_dofs_ext,
+            n_face_quad_pts,
+            n_shape_fns_int,
+            n_shape_fns_ext,
+            soln_basis_int,
+            soln_basis_ext,
+            flux_basis_int,
+            flux_basis_ext,
+            metric_oper_int,
+            metric_oper_ext,
+            pde_physics,
+            diss_num_flux,
+            viscous_face_term_int,
+            viscous_face_term_ext);
+
+        for(unsigned int idof=0; idof<n_dofs_int; ++idof)
+        {
+            local_rhs_int_cell[idof] += viscous_face_term_int[idof];
+        }
+        for(unsigned int idof=0; idof<n_dofs_ext; ++idof)
+        {
+            local_rhs_ext_cell[idof] += viscous_face_term_ext[idof];
+        }
     }
 }
 

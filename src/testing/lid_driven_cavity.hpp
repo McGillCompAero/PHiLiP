@@ -68,7 +68,7 @@ public:
         farfield_conservative = euler_physics.convert_primitive_to_conservative(primitive_boundary_values);
     }
 
-    /// Returns the value
+    /// Returns the conservative form of the initial condition for this test case. In primitive form, the initial condition is density=1, velocity=0 and pressure = 1/(Mach^2 * gamma).
     double value (const dealii::Point<dim> &/*point*/, const unsigned int istate) const override
     {
         if(istate==0)
