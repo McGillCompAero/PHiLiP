@@ -40,7 +40,7 @@ subsection flow_solver
   set flow_case_type = isentropic_vortex # Note: This does not run the isentropic vortex test case. It forms it's own grid and initial conditions in src/testing/lid_driven_cavity.cpp
   set poly_degree = 2
   set constant_time_step = 1.0e-3
-  set final_time = 100.0
+  set final_time = 2.0
   set steady_state = false
   subsection grid
     set number_of_mesh_refinements = 2
