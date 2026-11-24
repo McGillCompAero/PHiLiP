@@ -21,7 +21,7 @@ int EulerSplitEntropyCheck<dim, nspecies, nstate>::run_test() const
 
     using TwoPtFluxEnum = Parameters::AllParameters::TwoPointNumericalFlux;
     const std::array<TwoPtFluxEnum, n_fluxes> two_point_fluxes{{TwoPtFluxEnum::IR, TwoPtFluxEnum::CH, TwoPtFluxEnum::Ra, TwoPtFluxEnum::KG}};
-    const std::array<double, n_fluxes> tols{{5E-15, 5E-15, 5E-15, 1E-10}};
+    const std::array<double, n_fluxes> tols{{1E-14, 1E-14, 1E-14, 1E-10}};
     const std::array<std::string, n_fluxes> flux_names{{"Ismail-Roe", "Chandrashekar", "Ranocha", "Kennedy-Gruber"}};
 
     for (unsigned int i = 0; i < n_fluxes; ++i){

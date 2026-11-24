@@ -338,3 +338,32 @@ set_tests_labels(MPI_2D_RANS_SA_LAXFRIEDRICHS_MANUFACTURED_SOLUTION_NAVAH_5 NAVI
                                                                             RANS
                                                                             MODERATE
                                                                             INTEGRATION_TEST)
+
+configure_file(2d_lid_driven_cavity.prm 2d_lid_driven_cavity.prm COPYONLY)
+add_test(
+  NAME 2D_LID_DRIVEN_CAVITY_ENTROPY_STABILITY
+  COMMAND mpirun -np ${MPIMAX} ${EXECUTABLE_OUTPUT_PATH}/PHiLiP_2D -i ${CMAKE_CURRENT_BINARY_DIR}/2d_lid_driven_cavity.prm
+  WORKING_DIRECTORY ${TEST_OUTPUT_DIR}
+)
+set_tests_labels(2D_LID_DRIVEN_CAVITY_ENTROPY_STABILITY         NAVIER_STOKES_INTEGRATION
+                                                                2D
+                                                                PARALLEL
+                                                                NAVIER_STOKES
+                                                                STRONG
+                                                                UNCOLLOCATED
+                                                                INTEGRATION_TEST)
+
+configure_file(3d_lid_driven_cavity.prm 3d_lid_driven_cavity.prm COPYONLY)
+add_test(
+  NAME 3D_LID_DRIVEN_CAVITY_ENTROPY_STABILITY
+  COMMAND mpirun -np ${MPIMAX} ${EXECUTABLE_OUTPUT_PATH}/PHiLiP_3D -i ${CMAKE_CURRENT_BINARY_DIR}/3d_lid_driven_cavity.prm
+  WORKING_DIRECTORY ${TEST_OUTPUT_DIR}
+)
+set_tests_labels(3D_LID_DRIVEN_CAVITY_ENTROPY_STABILITY         NAVIER_STOKES_INTEGRATION
+                                                                3D
+                                                                PARALLEL
+                                                                NAVIER_STOKES
+                                                                STRONG
+                                                                UNCOLLOCATED
+                                                                INTEGRATION_TEST)
+
