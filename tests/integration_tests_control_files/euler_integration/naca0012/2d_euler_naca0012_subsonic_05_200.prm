@@ -34,7 +34,7 @@ subsection linear solver
   subsection gmres options
     # Factor by which the diagonal of the matrix will be scaled, which
     # sometimes can help to get better preconditioners
-    set ilut_atol                 = 1e-4
+    set ilut_atol                 = 1e-8 #changed for testing; used to be 1e-4
 
     # Amount of an absolute perturbation that will be added to the diagonal of
     # the matrix, which sometimes can help to get better preconditioners

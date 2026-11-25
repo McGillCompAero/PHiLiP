@@ -78,6 +78,7 @@ int main (int argc, char * argv[])
     all_parameters_new.use_weak_form = false;
     using PDE_enum   = Parameters::AllParameters::PartialDifferentialEquation;
     all_parameters_new.pde_type = PDE_enum::navier_stokes;
+    all_parameters_new.navier_stokes_param.reynolds_number_inf = 10000000;  //set to arbitrary value
 
     bool different = false;
     for(unsigned int grid_type=0; grid_type<2; grid_type++){

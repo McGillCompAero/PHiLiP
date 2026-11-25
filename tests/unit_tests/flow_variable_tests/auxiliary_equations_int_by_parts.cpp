@@ -297,6 +297,7 @@ int main (int argc, char * argv[])
             using ODE_enum = Parameters::ODESolverParam::ODESolverEnum;
             //choose NS equations
             all_parameters_new.pde_type = PDE_enum::navier_stokes;
+            all_parameters_new.navier_stokes_param.reynolds_number_inf = 10000000;  //set to arbitrary value to prevent test failure
             all_parameters_new.use_weak_form = false;
             all_parameters_new.all_boundaries_are_periodic = true;
             all_parameters_new.ode_solver_param.ode_solver_type = ODE_enum::runge_kutta_solver;//auxiliary only works explicit for now
